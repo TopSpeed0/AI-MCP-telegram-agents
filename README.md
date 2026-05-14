@@ -123,23 +123,23 @@ The MCP server file is `mcp/telegram-tg.js`.
 
 ## 3. Configure credentials
 
-Two options — pick one.
+`node setup.js` (or `npm run setup`) does this for you — it writes
+`.telegram-config` in the project root with your token and chat ID.
 
-### Option A — `.vscode/mcp.json` inputs (recommended)
-
-The included [.vscode/mcp.json](.vscode/mcp.json) prompts you for the token and
-chat ID the first time VS Code starts the MCP server. Values are stored in your
-VS Code secret storage, not in the repo.
-
-### Option B — `.telegram-config` file
+If you prefer to do it by hand:
 
 ```bash
 cp .telegram-config.example .telegram-config
 # edit .telegram-config and fill in bot_token + chat_id
 ```
 
-`.telegram-config` is git-ignored. The MCP server reads it from the workspace
-root when env vars aren't set.
+`.telegram-config` is **git-ignored** and gets file mode `0600` when written
+by `setup.js`.
+
+> **Alternative:** set environment variables `TELEGRAM_BOT_TOKEN` and
+> `TELEGRAM_CHAT_ID` instead. The server checks env vars first, then falls
+> back to `.telegram-config`. Use this if you'd rather not have a file on
+> disk (e.g. CI, containers, or a secret manager).
 
 ---
 
