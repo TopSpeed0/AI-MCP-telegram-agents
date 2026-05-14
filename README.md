@@ -1,0 +1,181 @@
+# telegram-vscode-mcp
+
+A **zero-dependency** Telegram ↔ VS Code Copilot bridge as a [Model Context
+Protocol](https://modelcontextprotocol.io/) (MCP) server.
+
+Lets a Copilot agent **ask you questions and receive instructions over
+Telegram**, so you can drive long-running coding sessions from your phone.
+
+Two tools are exposed to the agent:
+
+| Tool | Behavior |
+|------|----------|
+| `tg_send(text, parse_mode?)` | Fire-and-forget notification. |
+| `tg_ask(question, timeoutSeconds?, parse_mode?)` | Sends a message and **blocks until you reply** in Telegram. Returns the reply text. |
+
+Combine with the autopilot prompt in [AUTOPILOT_PROMPT.md](AUTOPILOT_PROMPT.md)
+to turn Copilot Chat into a Telegram-driven agent loop.
+
+---
+
+## Why not [chigwell/telegram-mcp](https://github.com/chigwell/telegram-mcp)?
+
+Different problem. [chigwell/telegram-mcp](https://github.com/chigwell/telegram-mcp)
+is excellent if you want an agent to **operate your Telegram account** — read
+chats, manage groups, send media, 80+ tools via Telethon and your personal
+account session.
+
+This project does the opposite: it exposes the **minimum** surface needed for
+**human-in-the-loop agent control** from Telegram.
+
+|                          | **telegram-vscode-mcp** (this)            | **chigwell/telegram-mcp**                   |
+|--------------------------|-------------------------------------------|---------------------------------------------|
+| Auth                     | Bot token (BotFather)                     | Personal Telegram account (session string)  |
+| Tools                    | 2 — `tg_send`, `tg_ask`                   | 80+ (chats, groups, media, admin, etc.)     |
+| Blocks until human reply | **Yes** (`tg_ask` long-polls)             | No                                          |
+| Runtime                  | Node.js 18+, **zero dependencies**, 1 file | Python + Telethon + uv/Docker              |
+| Telegram API             | Bot HTTP API (`api.telegram.org/bot…`)    | MTProto via Telethon                        |
+| Use case                 | "Drive Copilot from my phone"             | "Let the agent run my Telegram account"     |
+
+The `tg_ask` blocking primitive is what makes the **autopilot loop** possible:
+the agent halts and waits for your Telegram reply before continuing. None of
+the chigwell tools wait for human input — they're all immediate Telegram API
+calls. Pick whichever matches what you actually need; they don't overlap.
+
+This codebase **does not use or derive from** chigwell/telegram-mcp's code.
+It's an independent Node implementation against the public Bot API.
+
+---
+
+## Requirements
+
+- **Node.js 18+** (uses built-in `https`, no `npm install` needed)
+- **VS Code** with GitHub Copilot Chat (Agent mode)
+- A **Telegram bot** and your numeric **chat ID**
+
+---
+
+## 1. Create a Telegram bot
+
+1. Open Telegram, message [@BotFather](https://t.me/BotFather).
+2. Send `/newbot`, follow the prompts, copy the **bot token**
+   (looks like `1234567890:ABCdef...`).
+3. Start a chat with your new bot and send it any message.
+4. Get your **chat ID**:
+   ```
+   https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates
+   ```
+   Open that URL in a browser — find `"chat":{"id":<NUMBER>,...}` in the JSON.
+
+---
+
+## 2. Drop the folder into your project
+
+Either:
+
+- **Use as a submodule / copy** alongside an existing project, and merge the
+  `.vscode/mcp.json` snippet into your workspace's own `.vscode/mcp.json`, **or**
+- **Open this folder directly in VS Code** as a standalone workspace.
+
+The MCP server file is `mcp/telegram-tg.js`.
+
+---
+
+## 3. Configure credentials
+
+Two options — pick one.
+
+### Option A — `.vscode/mcp.json` inputs (recommended)
+
+The included [.vscode/mcp.json](.vscode/mcp.json) prompts you for the token and
+chat ID the first time VS Code starts the MCP server. Values are stored in your
+VS Code secret storage, not in the repo.
+
+### Option B — `.telegram-config` file
+
+```bash
+cp .telegram-config.example .telegram-config
+# edit .telegram-config and fill in bot_token + chat_id
+```
+
+`.telegram-config` is git-ignored. The MCP server reads it from the workspace
+root when env vars aren't set.
+
+---
+
+## 4. Start the MCP server in VS Code
+
+1. Open this folder (or your own workspace with `mcp.json` merged in).
+2. **Reload window** (or run command **MCP: List Servers** → start `telegram-tg`).
+3. Open Copilot Chat, switch to **Agent** mode.
+4. You should see `tg_send` and `tg_ask` listed in the tool picker.
+
+Test it:
+
+> Send me a Telegram message saying "hello from Copilot".
+
+The agent should call `tg_send` and a message lands in your Telegram chat.
+
+---
+
+## 5. Run the autopilot loop
+
+Paste the prompt from [AUTOPILOT_PROMPT.md](AUTOPILOT_PROMPT.md) into Copilot
+Chat (Agent mode). The agent will send 🟢Ready. to Telegram and wait for your
+next instruction. Reply from your phone — Copilot does the work in VS Code and
+reports back.
+
+Send `stop` from Telegram (or close the chat) to exit.
+
+---
+
+## How it works
+
+- Pure Node.js, no dependencies. Speaks **MCP 2024-11-05** JSON-RPC over stdio.
+- `tg_send` calls Telegram's `sendMessage` once.
+- `tg_ask` sends a `sendMessage`, then **long-polls** `getUpdates` until either
+  a new reply arrives in the configured chat or `timeoutSeconds` elapses.
+- Update offset persisted to `.telegram-state.json` to avoid double-consuming
+  messages across restarts.
+- Filters messages to the configured `chat_id` so other Telegram users can't
+  drive your agent.
+
+---
+
+## ⚠️ One poller per bot token
+
+Telegram's `getUpdates` is exclusive — **only one process at a time** can long-
+poll a given bot. If you run two autopilot sessions, a separate daemon, or
+webhook + polling against the same token, replies will be split randomly.
+
+If you need parallel agents, create a separate bot per agent.
+
+---
+
+## Troubleshooting
+
+| Symptom | Fix |
+|---------|-----|
+| `No Telegram config` error | Set env vars or create `.telegram-config`. |
+| Server starts but `tg_ask` never returns | Some other process is polling the same bot. Stop the other process or use a new bot token. |
+| `Conflict: terminated by other getUpdates request` in stderr | Same as above. |
+| Corporate TLS proxy breaks Telegram | Launch Node with `--use-system-ca`: edit `mcp.json` args to `["--use-system-ca", "${workspaceFolder}/mcp/telegram-tg.js"]`. |
+| Non-text replies | The server returns `(non-text message)` for stickers/photos. Reply with text. |
+
+---
+
+## Security notes
+
+- The bot token is full control of your bot — **never commit it**.
+  `.gitignore` already excludes `.telegram-config` and `.env`.
+- The server only accepts messages from the configured `chat_id`, but **anyone
+  who knows the bot username can DM it** (their messages just get filtered).
+  Don't share the bot username if your agent does sensitive work.
+- The agent has full access to whatever tools VS Code exposes (terminal, file
+  edits). Treat the Telegram chat like a remote shell — don't share it.
+
+---
+
+## License
+
+[MIT](LICENSE)
