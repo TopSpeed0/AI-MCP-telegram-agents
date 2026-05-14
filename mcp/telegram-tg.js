@@ -123,6 +123,26 @@ async function tgSend(text, parseMode) {
   return `Sent (message_id=${msg.message_id}${pm ? `, parse_mode=${pm}` : ''}).`;
 }
 
+// sendChatAction:'typing' shows "... is typing" in the chat for ~5s.
+// We refresh every 4s so the indicator stays solid for the requested duration.
+// Valid actions: typing, upload_photo, record_video, upload_video, record_voice,
+// upload_voice, upload_document, choose_sticker, find_location, record_video_note,
+// upload_video_note. Default: typing.
+async function tgTyping(seconds, action) {
+  const total = Math.max(1, Math.min(60, Number(seconds) || 5));
+  const act = action && String(action).trim() ? String(action).trim() : 'typing';
+  const deadline = Date.now() + total * 1000;
+  let pulses = 0;
+  while (Date.now() < deadline) {
+    await tgApi('sendChatAction', { chat_id: config.chat_id, action: act });
+    pulses++;
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) break;
+    await new Promise(r => setTimeout(r, Math.min(4000, remaining)));
+  }
+  return `Sent ${pulses} "${act}" pulse${pulses === 1 ? '' : 's'} over ${total}s.`;
+}
+
 async function tgAsk(question, timeoutSeconds, parseMode) {
   const timeoutMs = Math.max(5, Math.min(3600, Number(timeoutSeconds) || 300)) * 1000;
   const pm = normalizeParseMode(parseMode);
@@ -218,6 +238,17 @@ const TOOLS = [
       required: ['question'],
     },
   },
+  {
+    name: 'tg_typing',
+    description: 'Show a "typing..." indicator in the operator\'s Telegram chat. Use this before starting work that will take a few seconds so the operator sees the agent is busy. Blocks for the requested duration, refreshing the indicator every 4s. Call it again to extend.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        seconds: { type: 'number', description: 'How long to keep the indicator visible (1-60, default 5).' },
+        action:  { type: 'string', enum: ['typing', 'upload_photo', 'record_video', 'upload_video', 'record_voice', 'upload_voice', 'upload_document', 'choose_sticker', 'find_location', 'record_video_note', 'upload_video_note'], description: 'Telegram chat action. Default "typing". Use "upload_document" when you\'re about to send a long report.' },
+      },
+    },
+  },
 ];
 
 function write(msg) {
@@ -253,6 +284,8 @@ async function handle(req) {
       } else if (name === 'tg_ask') {
         if (!args.question) throw new Error('tg_ask requires "question".');
         text = await tgAsk(String(args.question), args.timeoutSeconds, args.parse_mode);
+      } else if (name === 'tg_typing') {
+        text = await tgTyping(args.seconds, args.action);
       } else {
         throw new Error(`Unknown tool: ${name}`);
       }

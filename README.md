@@ -21,6 +21,7 @@ Two tools are exposed to the agent:
 |------|----------|
 | `tg_send(text, parse_mode?)` | Fire-and-forget notification. |
 | `tg_ask(question, timeoutSeconds?, parse_mode?)` | Sends a message and **blocks until you reply** in Telegram. Returns the reply text. |
+| `tg_typing(seconds?, action?)` | Shows a "typing…" indicator in your chat for N seconds (refreshed every 4s). Use before long work so you can see the agent is busy. Other actions: `upload_photo`, `upload_document`, `record_video`, etc. |
 
 Combine with the autopilot prompt in [AUTOPILOT_PROMPT.md](AUTOPILOT_PROMPT.md)
 to turn Copilot Chat into a Telegram-driven agent loop.
