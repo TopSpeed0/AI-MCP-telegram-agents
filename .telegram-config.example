@@ -1,0 +1,5 @@
+{
+  "_comment": "Alternative to .vscode/mcp.json inputs. Copy to .telegram-config and fill in.",
+  "bot_token": "PUT-YOUR-BOT-TOKEN-HERE",
+  "chat_id": "PUT-YOUR-NUMERIC-CHAT-ID-HERE"
+}

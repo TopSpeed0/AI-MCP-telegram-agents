@@ -1,0 +1,11 @@
+# Local secrets / state — never commit these
+.telegram-config
+.telegram-state.json
+.env
+.env.local
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.log
+node_modules/

@@ -1,0 +1,27 @@
+{
+  "servers": {
+    "telegram-tg": {
+      "command": "node",
+      "args": [
+        "${workspaceFolder}/mcp/telegram-tg.js"
+      ],
+      "env": {
+        "TELEGRAM_BOT_TOKEN": "${input:telegramBotToken}",
+        "TELEGRAM_CHAT_ID": "${input:telegramChatId}"
+      }
+    }
+  },
+  "inputs": [
+    {
+      "id": "telegramBotToken",
+      "type": "promptString",
+      "description": "Telegram bot token (from @BotFather)",
+      "password": true
+    },
+    {
+      "id": "telegramChatId",
+      "type": "promptString",
+      "description": "Your Telegram chat ID (numeric)"
+    }
+  ]
+}
