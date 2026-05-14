@@ -3,6 +3,7 @@
     "telegram-tg": {
       "command": "node",
       "args": [
+        "--use-system-ca",
         "${workspaceFolder}/mcp/telegram-tg.js"
       ],
       "env": {

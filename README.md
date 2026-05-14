@@ -1,7 +1,7 @@
 # telegram-vscode-mcp
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Node.js](https://img.shields.io/badge/node-%3E%3D18-339933?logo=node.js&logoColor=white)](https://nodejs.org)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D22.10-339933?logo=node.js&logoColor=white)](https://nodejs.org)
 [![Zero dependencies](https://img.shields.io/badge/dependencies-0-brightgreen)](package.json)
 [![MCP](https://img.shields.io/badge/MCP-2024--11--05-8A2BE2)](https://modelcontextprotocol.io/)
 [![Telegram Bot API](https://img.shields.io/badge/Telegram-Bot%20API-26A5E4?logo=telegram&logoColor=white)](https://core.telegram.org/bots/api)
@@ -58,9 +58,14 @@ It's an independent Node implementation against the public Bot API.
 
 ## Requirements
 
-- **Node.js 18+** (uses built-in `https`, no `npm install` needed)
+- **Node.js 22.10+** (uses built-in `https` + `--use-system-ca`, no `npm install` needed)
 - **VS Code** with GitHub Copilot Chat (Agent mode)
 - A **Telegram bot** and your numeric **chat ID**
+
+> **Behind a corporate TLS proxy?** Both `setup.js` and the MCP server launch
+> Node with `--use-system-ca`, which trusts the OS certificate store. As long
+> as your proxy's root cert is installed in Windows/macOS/Linux trust roots
+> (it usually is, via group policy), things just work.
 
 ---
 
@@ -194,7 +199,7 @@ If you need parallel agents, create a separate bot per agent.
 | `No Telegram config` error | Set env vars or create `.telegram-config`. |
 | Server starts but `tg_ask` never returns | Some other process is polling the same bot. Stop the other process or use a new bot token. |
 | `Conflict: terminated by other getUpdates request` in stderr | Same as above. |
-| Corporate TLS proxy breaks Telegram | Launch Node with `--use-system-ca`: edit `mcp.json` args to `["--use-system-ca", "${workspaceFolder}/mcp/telegram-tg.js"]`. |
+| `unable to get local issuer certificate` / `self-signed cert in chain` | Corporate TLS proxy. Already handled — both `setup.js` and the MCP server use `--use-system-ca` (Node 22.10+). On older Node, set `NODE_EXTRA_CA_CERTS=/path/to/corp-root.pem` and re-run. |
 | Non-text replies | The server returns `(non-text message)` for stickers/photos. Reply with text. |
 
 ---

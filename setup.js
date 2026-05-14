@@ -16,9 +16,27 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 const readline = require('readline');
+const { spawnSync } = require('child_process');
 
 const ROOT = __dirname;
 const CONFIG_PATH = path.join(ROOT, '.telegram-config');
+
+// Auto-respawn with --use-system-ca if not already set.
+// This trusts the OS certificate store (Windows/macOS), which corporate TLS
+// proxies (e.g. Zscaler, Netskope, BlueCoat) inject their root into.
+// Requires Node 22.10+. On older Node, fall through and let normal errors surface.
+if (!process.env.__TGMCP_SYSCA && !process.execArgv.includes('--use-system-ca')) {
+  const nodeMajor = parseInt(process.versions.node.split('.')[0], 10);
+  const nodeMinor = parseInt(process.versions.node.split('.')[1], 10);
+  const supportsFlag = nodeMajor > 22 || (nodeMajor === 22 && nodeMinor >= 10);
+  if (supportsFlag) {
+    const r = spawnSync(process.execPath, ['--use-system-ca', __filename, ...process.argv.slice(2)], {
+      stdio: 'inherit',
+      env: { ...process.env, __TGMCP_SYSCA: '1' },
+    });
+    process.exit(r.status == null ? 1 : r.status);
+  }
+}
 
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 const ask = (q) => new Promise((res) => rl.question(q, (a) => res(a.trim())));
@@ -88,6 +106,18 @@ async function main() {
       ok(`Bot verified: @${me.username} (${me.first_name})`);
     } catch (e) {
       err(`Token rejected by Telegram: ${e.message}`);
+      if (/local issuer certificate|self.signed|CERT_|unable to verify/i.test(e.message)) {
+        log('');
+        warn('Looks like a TLS/certificate issue (often a corporate proxy).');
+        warn('Try one of these and re-run setup:');
+        warn('  1. Upgrade Node to 22.10+ (this script auto-uses the OS cert store on 22.10+).');
+        warn('  2. Set NODE_EXTRA_CA_CERTS to your proxy root cert (PEM):');
+        warn('       PowerShell: $env:NODE_EXTRA_CA_CERTS="C:\\path\\to\\corp-root.pem"');
+        warn('       bash:       export NODE_EXTRA_CA_CERTS=/path/to/corp-root.pem');
+        warn('  3. Last resort (NOT for shared machines):');
+        warn('       $env:NODE_TLS_REJECT_UNAUTHORIZED="0"   # disables ALL TLS verification');
+        log('');
+      }
       me = null;
     }
   }

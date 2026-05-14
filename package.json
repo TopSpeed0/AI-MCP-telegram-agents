@@ -6,8 +6,9 @@
     "telegram-tg": "mcp/telegram-tg.js"
   },
   "scripts": {
-    "setup": "node setup.js",
-    "start": "node mcp/telegram-tg.js"
+    "setup": "node --use-system-ca setup.js",
+    "setup:legacy": "node setup.js",
+    "start": "node --use-system-ca mcp/telegram-tg.js"
   },
   "keywords": [
     "mcp",
@@ -20,6 +21,6 @@
   ],
   "license": "MIT",
   "engines": {
-    "node": ">=18"
+    "node": ">=22.10"
   }
 }
