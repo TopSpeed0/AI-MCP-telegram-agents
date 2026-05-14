@@ -1,5 +1,14 @@
 # telegram-vscode-mcp
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D18-339933?logo=node.js&logoColor=white)](https://nodejs.org)
+[![Zero dependencies](https://img.shields.io/badge/dependencies-0-brightgreen)](package.json)
+[![MCP](https://img.shields.io/badge/MCP-2024--11--05-8A2BE2)](https://modelcontextprotocol.io/)
+[![Telegram Bot API](https://img.shields.io/badge/Telegram-Bot%20API-26A5E4?logo=telegram&logoColor=white)](https://core.telegram.org/bots/api)
+[![VS Code](https://img.shields.io/badge/VS%20Code-Copilot%20Agent-007ACC?logo=visualstudiocode&logoColor=white)](https://code.visualstudio.com/)
+[![Platform](https://img.shields.io/badge/platform-win%20%7C%20mac%20%7C%20linux-lightgrey)](#requirements)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-ff69b4)](https://github.com)
+
 A **zero-dependency** Telegram ↔ VS Code Copilot bridge as a [Model Context
 Protocol](https://modelcontextprotocol.io/) (MCP) server.
 
@@ -52,6 +61,32 @@ It's an independent Node implementation against the public Bot API.
 - **Node.js 18+** (uses built-in `https`, no `npm install` needed)
 - **VS Code** with GitHub Copilot Chat (Agent mode)
 - A **Telegram bot** and your numeric **chat ID**
+
+---
+
+## Quick Start (one command)
+
+After cloning, run the interactive installer:
+
+```bash
+git clone https://github.com/<you>/telegram-vscode-mcp.git
+cd telegram-vscode-mcp
+node setup.js          # or: npm run setup
+```
+
+The installer will:
+
+1. Ask for your **bot token** (validates it via Telegram's `getMe`).
+2. Auto-detect your **chat ID** — it asks you to send any message to the bot,
+   then reads it back. Multi-chat? You get a numbered picker. No message? Manual fallback.
+3. Write `.telegram-config` (already gitignored, mode `0600`).
+4. Send a confirmation message to your Telegram.
+5. Print the next steps.
+
+Then reload VS Code → open Copilot Chat (Agent mode) → paste
+[AUTOPILOT_PROMPT.md](AUTOPILOT_PROMPT.md) and go.
+
+If you prefer the manual route, the step-by-step guide is below.
 
 ---
 
