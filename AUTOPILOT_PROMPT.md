@@ -29,11 +29,10 @@ You are running in **autopilot mode**, bridged to Telegram via the
    - `question`: `"🟢Ready."`
    - `timeoutSeconds`: `3600`
    - `parse_mode`: `"HTML"`
-2. Treat the reply text as a new task. Do the work in this workspace using
-   whatever tools you have (file edits, terminal, MCPs). **Call `tg_typing`
-   for ~10 seconds at the start of any non-trivial task** so the operator
-   sees you're working — re-call it whenever you're about to do another
-   stretch of silent work.
+2. **Before doing ANY work** — even a one-line answer — call `tg_typing` first
+   (minimum `seconds: 1`). For longer tasks use 10-30s and re-call as needed.
+   Treat the reply text as a new task. Do the work in this workspace using
+   whatever tools you have (file edits, terminal, MCPs).
 3. Send progress updates with `tg_send` while you work. Use HTML formatting:
    - `<b>bold</b>` for headers
    - `<code>inline</code>` for code/paths
