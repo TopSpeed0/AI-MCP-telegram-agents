@@ -89,8 +89,8 @@ The installer will:
 4. Send a confirmation message to your Telegram.
 5. Print the next steps.
 
-Then reload VS Code → open Copilot Chat (Agent mode) → paste
-[AUTOPILOT_PROMPT.md](AUTOPILOT_PROMPT.md) and go.
+Then reload VS Code → open Copilot Chat (Agent mode) → type
+`@telegram-autopilot start` and go.
 
 If you prefer the manual route, the step-by-step guide is below.
 
@@ -161,12 +161,33 @@ The agent should call `tg_send` and a message lands in your Telegram chat.
 
 ## 5. Run the autopilot loop
 
-Paste the prompt from [AUTOPILOT_PROMPT.md](AUTOPILOT_PROMPT.md) into Copilot
-Chat (Agent mode). The agent will send 🟢Ready. to Telegram and wait for your
-next instruction. Reply from your phone — Copilot does the work in VS Code and
-reports back.
+### Option A — Agent mode (recommended)
 
-Send `stop` from Telegram (or close the chat) to exit.
+The repo ships a Copilot agent at
+[`.github/agents/telegram-autopilot.agent.md`](.github/agents/telegram-autopilot.agent.md).
+
+In Copilot Chat, type:
+
+```
+@telegram-autopilot start
+```
+
+The agent begins the loop automatically — sends 🟢Ready. to Telegram and waits
+for your next instruction. Reply from your phone; Copilot does the work in
+VS Code and reports back.
+
+> **Tip:** You can also click the `@` icon in the chat input and select
+> **telegram-autopilot** from the agent picker.
+
+### Option B — Manual prompt paste
+
+If you prefer not to use the agent file, paste the prompt from
+[AUTOPILOT_PROMPT.md](AUTOPILOT_PROMPT.md) directly into Copilot Chat (Agent
+mode). Same behavior, just more manual.
+
+---
+
+Send `stop` from Telegram (or close the chat) to exit the loop.
 
 ---
 
