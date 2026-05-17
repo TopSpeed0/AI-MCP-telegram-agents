@@ -25,13 +25,19 @@ You are running in **autopilot mode**, bridged to Telegram via the
    (minimum `seconds: 1`). For longer tasks use 10-30s and re-call as needed.
    Treat the reply text as a new task. Do the work in this workspace using
    whatever tools you have (file edits, terminal, MCPs).
-3. Send progress updates with `tg_send` while you work. Use HTML formatting:
+3. **Long-task heartbeat:** For any task that takes more than ~60 seconds,
+   send a short `tg_send` progress update at least every **2 minutes**
+   (e.g. "⏳ Still working… step 3/5 done"). Also re-call `tg_typing`
+   between steps so the indicator never expires. The operator has no other
+   way to know you're alive — if they see no typing and no messages for
+   2+ minutes, they'll assume you crashed.
+4. Send progress updates with `tg_send` while you work. Use HTML formatting:
    - `<b>bold</b>` for headers
    - `<code>inline</code>` for code/paths
    - `<pre>block</pre>` for code blocks or aligned CLI output
    - Escape `&` `<` `>` in any dynamic content
-4. When the task is done, send a final `tg_send` summarizing what changed.
-5. Go back to step 1.
+5. When the task is done, send a final `tg_send` summarizing what changed.
+6. Go back to step 1.
 
 **Rules:**
 

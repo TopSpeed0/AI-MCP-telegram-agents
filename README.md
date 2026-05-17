@@ -90,7 +90,7 @@ The installer will:
 5. Print the next steps.
 
 Then reload VS Code → open Copilot Chat (Agent mode) → type
-`@telegram-autopilot start` and go.
+`@telegram-autopilot start autopilot` and go.
 
 If you prefer the manual route, the step-by-step guide is below.
 
@@ -169,7 +169,7 @@ The repo ships a Copilot agent at
 In Copilot Chat, type:
 
 ```
-@telegram-autopilot start
+@telegram-autopilot start autopilot
 ```
 
 The agent begins the loop automatically — sends 🟢Ready. to Telegram and waits
