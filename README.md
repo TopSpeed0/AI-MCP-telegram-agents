@@ -89,8 +89,8 @@ The installer will:
 4. Send a confirmation message to your Telegram.
 5. Print the next steps.
 
-Then reload VS Code → open Copilot Chat → select **telegram-autopilot** from
-the agent picker → type `start autopilot` and go.
+Then reload VS Code → open Copilot Chat (Agent mode) → type
+`@telegram-autopilot start autopilot` and go.
 
 If you prefer the manual route, the step-by-step guide is below.
 
