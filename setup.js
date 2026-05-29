@@ -218,10 +218,8 @@ async function main() {
   log('     into your existing workspace).');
   log('  2. Reload the window. Run command: "MCP: List Servers"');
   log('     and confirm "telegram-tg" is running.');
-  log('  3. Open Copilot Chat -> switch to Agent mode -> you should');
-  log('     see tg_send and tg_ask in the tool picker.');
-  log('  4. Paste the prompt from AUTOPILOT_PROMPT.md into Copilot');
-  log('     Chat to start the autopilot loop.');
+  log('  3. Open Copilot Chat -> switch to Agent mode -> type:');
+  log('     @telegram-autopilot start autopilot');
   log('');
   log('  Reply "stop" from Telegram to exit the loop.');
   log('');
