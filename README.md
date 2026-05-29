@@ -240,6 +240,73 @@ If you need parallel agents, create a separate bot per agent.
 
 ---
 
+## 6. Hybrid mode — Hermes + VS Code Copilot
+
+For advanced setups, you can run **two agents** as a hybrid:
+
+- **[Hermes Agent](https://hermes-agent.nousresearch.com/)** — always-on,
+  owns the Telegram bot, handles general tasks (research, web, memory, cron)
+- **VS Code Copilot** — workspace worker, handles coding tasks (file edits,
+  terminal, language server, refactoring)
+
+They communicate via a shared task queue file (`.vscode-queue.json`).
+
+### Architecture
+
+```
+You (Telegram)
+    │
+    ▼
+Hermes Agent (always-on)
+    ├── General tasks → handles directly
+    └── VS Code tasks → writes to .vscode-queue.json
+                              │
+                              ▼
+                    vscode-queue MCP server (in VS Code)
+                              │
+                              ▼
+                    vscode-worker agent (Copilot loop)
+                              │
+                              ▼
+                    Result → .vscode-queue.json → Hermes → Telegram
+```
+
+### Setup
+
+1. Install [Hermes Agent](https://hermes-agent.nousresearch.com/docs/getting-started/installation)
+2. Configure Hermes with the same Telegram bot (see Hermes
+   [Telegram docs](https://hermes-agent.nousresearch.com/docs/user-guide/messaging/telegram))
+3. Open this folder in VS Code. The `vscode-queue` MCP server is already
+   registered in `.vscode/mcp.json`.
+4. Start the Copilot worker: in Copilot Chat (Agent mode), type:
+   ```
+   @vscode-worker start worker
+   ```
+5. Start Hermes pointing at this directory — it reads `.hermes.md` and
+   knows how to delegate via the queue.
+
+### Queue protocol
+
+Hermes writes tasks to `.vscode-queue.json`:
+
+```json
+{
+  "id": "task-001",
+  "task": "Fix the import error in src/utils.ts",
+  "context": "Error: Cannot find module './helpers'",
+  "status": "pending",
+  "created": "2026-05-29T12:00:00Z",
+  "updated": "2026-05-29T12:00:00Z"
+}
+```
+
+Status flow: `pending` → `working` (Copilot picks it up) → `done` or `error`.
+
+One task at a time. Hermes polls the file for completion, reads `result`,
+and relays it to Telegram.
+
+---
+
 ## License
 
 [MIT](LICENSE)

@@ -6,6 +6,12 @@
         "--use-system-ca",
         "${workspaceFolder}/mcp/telegram-tg.js"
       ]
+    },
+    "vscode-queue": {
+      "command": "node",
+      "args": [
+        "${workspaceFolder}/mcp/vscode-queue.js"
+      ]
     }
   }
 }
