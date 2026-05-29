@@ -4,6 +4,9 @@
 .env
 .env.local
 
+# Personal workspace config (org-specific paths, not generic)
+.github/copilot-instructions.md
+
 # OS / editor
 .DS_Store
 Thumbs.db

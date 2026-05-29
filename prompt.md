@@ -1,0 +1,1 @@
+@telegram-autopilot start autopilot
