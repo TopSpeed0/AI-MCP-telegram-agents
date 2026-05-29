@@ -1,12 +1,14 @@
 # Local secrets / state — never commit these
 .telegram-config
 .telegram-state.json
+.vscode-queue.json
 .env
 .env.local
 
 # Personal workspace config (org-specific paths, not generic)
 .github/copilot-instructions.md
 start-loop.txt
+SESSION-SUMMARY.md
 
 # OS / editor
 .DS_Store

@@ -1,5 +1,9 @@
 # telegram-vscode-mcp
 
+<p align="center">
+  <img src="docs/banner.png" alt="Telegram ↔ VS Code Copilot Bridge" width="800">
+</p>
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D22.10-339933?logo=node.js&logoColor=white)](https://nodejs.org)
 [![Zero dependencies](https://img.shields.io/badge/dependencies-0-brightgreen)](package.json)
@@ -237,6 +241,141 @@ If you need parallel agents, create a separate bot per agent.
   Don't share the bot username if your agent does sensitive work.
 - The agent has full access to whatever tools VS Code exposes (terminal, file
   edits). Treat the Telegram chat like a remote shell — don't share it.
+
+---
+
+## 6. Hybrid mode — Hermes + VS Code Copilot
+
+For advanced setups, you can run **two agents** as a hybrid:
+
+- **[Hermes Agent](https://hermes-agent.nousresearch.com/)** — always-on,
+  owns the Telegram bot, handles general tasks (research, web, memory, cron)
+- **VS Code Copilot** — workspace worker, handles coding tasks (file edits,
+  terminal, language server, refactoring)
+
+They communicate via a shared task queue file (`.vscode-queue.json`).
+
+### Architecture
+
+```
+You (Telegram)
+    │
+    ▼
+Hermes Agent (always-on)
+    ├── General tasks → handles directly
+    └── VS Code tasks → writes to .vscode-queue.json
+                              │
+                              ▼
+                    vscode-queue MCP server (in VS Code)
+                              │
+                              ▼
+                    vscode-worker agent (Copilot loop)
+                              │
+                              ▼
+                    Result → .vscode-queue.json → Hermes → Telegram
+```
+
+### Quick Setup (one command after setup.js)
+
+```bash
+node setup-hybrid.js
+```
+
+The hybrid installer will:
+1. Read your `.telegram-config` (from `setup.js`)
+2. Check prerequisites (Hermes, `gh` CLI, Node 22+)
+3. Ensure GitHub OAuth login (not PAT — Copilot API requires OAuth)
+4. Configure Hermes model → GitHub Copilot (free with your Copilot subscription)
+5. Inject the delegation instructions into Hermes config
+6. Configure Telegram gateway with your bot token
+7. Optionally fix corporate TLS proxy (exports Windows root CAs for Python)
+
+### Manual Setup
+
+1. Install [Hermes Agent](https://hermes-agent.nousresearch.com/docs/getting-started/installation):
+   ```bash
+   pip install hermes-agent
+   ```
+
+2. Login to GitHub with OAuth (PATs don't work with Copilot API):
+   ```bash
+   gh auth login -h github.com -p https -w
+   ```
+
+3. Configure Hermes model:
+   ```bash
+   hermes setup model
+   # Select: GitHub Copilot (option 13)
+   # Select: claude-sonnet-4.6 (or any available model)
+   ```
+
+4. Configure Telegram gateway:
+   ```bash
+   hermes setup gateway
+   # Select: Telegram
+   # Enter: your bot token (same as .telegram-config)
+   # Enter: your chat ID as allowed user
+   ```
+
+5. Open this folder in VS Code. The `vscode-queue` MCP server is already
+   registered in `.vscode/mcp.json`.
+
+### Running the Hybrid
+
+```bash
+# Terminal: start Hermes gateway
+hermes gateway start
+
+# VS Code: open Copilot Chat → new panel → type:
+@vscode-worker start worker
+
+# Telegram: send a message to your bot!
+```
+
+To stop:
+```bash
+hermes gateway stop
+# Close the worker chat panel in VS Code
+```
+
+### Important Notes
+
+- **One bot token owner at a time.** Either Hermes gateway OR `@telegram-autopilot`
+  can poll the bot — not both. Stop one before starting the other.
+- **OAuth, not PAT.** GitHub Copilot's inference API requires an OAuth token (`gho_...`).
+  PATs (`github_pat_...`) return "Personal Access Tokens are not supported". Use
+  `gh auth login` via browser.
+- **Corporate TLS proxy?** Python's `certifi` doesn't include corporate root CAs.
+  Export them from Windows cert store and set `SSL_CERT_FILE` in Hermes `.env`.
+  The hybrid installer handles this automatically.
+
+### Queue protocol
+
+Hermes writes tasks to `.vscode-queue.json`:
+
+```json
+{
+  "id": "task-001",
+  "task": "Fix the import error in src/utils.ts",
+  "context": "Error: Cannot find module './helpers'",
+  "status": "pending",
+  "created": "2026-05-29T12:00:00Z",
+  "updated": "2026-05-29T12:00:00Z"
+}
+```
+
+Status flow: `pending` → `working` (Copilot picks it up) → `done` or `error`.
+
+One task at a time. Hermes polls the file for completion, reads `result`,
+and relays it to Telegram.
+
+---
+
+## 🎮 Fun Fact
+
+The architecture of this hybrid mode was heavily inspired by **StarCraft (SC2)** RTS mechanics.
+
+The **Hermes Agent** acts as the *Command Center / Overmind* (handling high-level strategy, scouting, and global state), while the **VS Code worker** operates like an *SCV / Drone* (staying inside the local workspace base to execute the heavy macro work).
 
 ---
 
