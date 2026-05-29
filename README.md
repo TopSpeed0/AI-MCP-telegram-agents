@@ -271,19 +271,79 @@ Hermes Agent (always-on)
                     Result → .vscode-queue.json → Hermes → Telegram
 ```
 
-### Setup
+### Quick Setup (one command after setup.js)
 
-1. Install [Hermes Agent](https://hermes-agent.nousresearch.com/docs/getting-started/installation)
-2. Configure Hermes with the same Telegram bot (see Hermes
-   [Telegram docs](https://hermes-agent.nousresearch.com/docs/user-guide/messaging/telegram))
-3. Open this folder in VS Code. The `vscode-queue` MCP server is already
+```bash
+node setup-hybrid.js
+```
+
+The hybrid installer will:
+1. Read your `.telegram-config` (from `setup.js`)
+2. Check prerequisites (Hermes, `gh` CLI, Node 22+)
+3. Ensure GitHub OAuth login (not PAT — Copilot API requires OAuth)
+4. Configure Hermes model → GitHub Copilot (free with your Copilot subscription)
+5. Inject the delegation instructions into Hermes config
+6. Configure Telegram gateway with your bot token
+7. Optionally fix corporate TLS proxy (exports Windows root CAs for Python)
+
+### Manual Setup
+
+1. Install [Hermes Agent](https://hermes-agent.nousresearch.com/docs/getting-started/installation):
+   ```bash
+   pip install hermes-agent
+   ```
+
+2. Login to GitHub with OAuth (PATs don't work with Copilot API):
+   ```bash
+   gh auth login -h github.com -p https -w
+   ```
+
+3. Configure Hermes model:
+   ```bash
+   hermes setup model
+   # Select: GitHub Copilot (option 13)
+   # Select: claude-sonnet-4.6 (or any available model)
+   ```
+
+4. Configure Telegram gateway:
+   ```bash
+   hermes setup gateway
+   # Select: Telegram
+   # Enter: your bot token (same as .telegram-config)
+   # Enter: your chat ID as allowed user
+   ```
+
+5. Open this folder in VS Code. The `vscode-queue` MCP server is already
    registered in `.vscode/mcp.json`.
-4. Start the Copilot worker: in Copilot Chat (Agent mode), type:
-   ```
-   @vscode-worker start worker
-   ```
-5. Start Hermes pointing at this directory — it reads `.hermes.md` and
-   knows how to delegate via the queue.
+
+### Running the Hybrid
+
+```bash
+# Terminal: start Hermes gateway
+hermes gateway start
+
+# VS Code: open Copilot Chat → new panel → type:
+@vscode-worker start worker
+
+# Telegram: send a message to your bot!
+```
+
+To stop:
+```bash
+hermes gateway stop
+# Close the worker chat panel in VS Code
+```
+
+### Important Notes
+
+- **One bot token owner at a time.** Either Hermes gateway OR `@telegram-autopilot`
+  can poll the bot — not both. Stop one before starting the other.
+- **OAuth, not PAT.** GitHub Copilot's inference API requires an OAuth token (`gho_...`).
+  PATs (`github_pat_...`) return "Personal Access Tokens are not supported". Use
+  `gh auth login` via browser.
+- **Corporate TLS proxy?** Python's `certifi` doesn't include corporate root CAs.
+  Export them from Windows cert store and set `SSL_CERT_FILE` in Hermes `.env`.
+  The hybrid installer handles this automatically.
 
 ### Queue protocol
 
