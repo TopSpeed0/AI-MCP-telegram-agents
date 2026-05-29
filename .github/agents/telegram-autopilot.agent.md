@@ -19,7 +19,8 @@ You are running in **autopilot mode**, bridged to Telegram via the
 
 1. Call `tg_ask` with:
    - `question`: `"🟢Ready."`
-   - `timeoutSeconds`: `3600`
+   - `timeoutSeconds`: `36000` (10 hours — just in case)
+     - If it times out, just loop and call it again, without calling "🟢Ready."
    - `parse_mode`: `"HTML"`
 2. **Before doing ANY work** — even a one-line answer — call `tg_typing` first
    (minimum `seconds: 1`). For longer tasks use 10-30s and re-call as needed.
