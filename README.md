@@ -371,6 +371,14 @@ and relays it to Telegram.
 
 ---
 
+## 🎮 Fun Fact
+
+The architecture of this hybrid mode was heavily inspired by **StarCraft (SC2)** RTS mechanics.
+
+The **Hermes Agent** acts as the *Command Center / Overmind* (handling high-level strategy, scouting, and global state), while the **VS Code worker** operates like an *SCV / Drone* (staying inside the local workspace base to execute the heavy macro work).
+
+---
+
 ## License
 
 [MIT](LICENSE)
