@@ -8,6 +8,7 @@
 # Personal workspace config (org-specific paths, not generic)
 .github/copilot-instructions.md
 start-loop.txt
+SESSION-SUMMARY.md
 
 # OS / editor
 .DS_Store

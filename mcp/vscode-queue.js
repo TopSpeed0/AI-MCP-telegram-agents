@@ -40,8 +40,7 @@ function writeQueue(task) {
 // ---------- JSON-RPC helpers ----------
 
 function send(obj) {
-  const json = JSON.stringify(obj);
-  process.stdout.write(`Content-Length: ${Buffer.byteLength(json)}\r\n\r\n${json}`);
+  process.stdout.write(JSON.stringify(obj) + '\n');
 }
 
 function reply(id, result) {
@@ -50,10 +49,6 @@ function reply(id, result) {
 
 function error(id, code, message) {
   send({ jsonrpc: '2.0', id, error: { code, message } });
-}
-
-function notification(method, params) {
-  send({ jsonrpc: '2.0', method, params });
 }
 
 // ---------- MCP tool definitions ----------
@@ -220,32 +215,22 @@ async function handleMessage(msg) {
 
 // ---------- stdio transport ----------
 
-let buffer = '';
-
-const rl = readline.createInterface({ input: process.stdin, terminal: false });
+const rl = readline.createInterface({ input: process.stdin });
 
 rl.on('line', (line) => {
-  buffer += line;
-  // Try to parse JSON — MCP messages may come as Content-Length headers + body
-  // or as raw JSON lines depending on the client.
+  const trimmed = line.trim();
+  if (!trimmed) return;
+  let msg;
   try {
-    // Skip Content-Length headers
-    if (/^Content-Length:\s*\d+$/i.test(buffer.trim())) {
-      buffer = '';
-      return;
-    }
-    if (buffer.trim() === '') {
-      buffer = '';
-      return;
-    }
-    const msg = JSON.parse(buffer);
-    buffer = '';
-    handleMessage(msg).catch((e) => {
-      process.stderr.write(`[vscode-queue] handler error: ${e.message}\n`);
-    });
-  } catch {
-    // Incomplete JSON — wait for more lines
+    msg = JSON.parse(trimmed);
+  } catch (e) {
+    process.stderr.write(`[vscode-queue] bad JSON: ${e.message}\n`);
+    return;
   }
+  handleMessage(msg).catch((e) => {
+    process.stderr.write(`[vscode-queue] handler error: ${e.message}\n`);
+    if (msg && msg.id != null) error(msg.id, -32603, e.message);
+  });
 });
 
 process.stdin.on('end', () => process.exit(0));
