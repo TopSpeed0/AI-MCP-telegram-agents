@@ -23,8 +23,8 @@ Two tools are exposed to the agent:
 | `tg_ask(question, timeoutSeconds?, parse_mode?)` | Sends a message and **blocks until you reply** in Telegram. Returns the reply text. |
 | `tg_typing(seconds?, action?)` | Shows a "typing…" indicator in your chat for N seconds (refreshed every 4s). Use before long work so you can see the agent is busy. Other actions: `upload_photo`, `upload_document`, `record_video`, etc. |
 
-Combine with the autopilot prompt in [AUTOPILOT_PROMPT.md](AUTOPILOT_PROMPT.md)
-to turn Copilot Chat into a Telegram-driven agent loop.
+Combine with the built-in Copilot agent to turn Copilot Chat into a
+Telegram-driven agent loop.
 
 ---
 
@@ -161,8 +161,6 @@ The agent should call `tg_send` and a message lands in your Telegram chat.
 
 ## 5. Run the autopilot loop
 
-### Option A — Agent mode (recommended)
-
 The repo ships a Copilot agent at
 [`.github/agents/telegram-autopilot.agent.md`](.github/agents/telegram-autopilot.agent.md).
 
@@ -179,15 +177,19 @@ VS Code and reports back.
 > **Tip:** You can also click the `@` icon in the chat input and select
 > **telegram-autopilot** from the agent picker.
 
-### Option B — Manual prompt paste
-
-If you prefer not to use the agent file, paste the prompt from
-[AUTOPILOT_PROMPT.md](AUTOPILOT_PROMPT.md) directly into Copilot Chat (Agent
-mode). Same behavior, just more manual.
-
----
-
 Send `stop` from Telegram (or close the chat) to exit the loop.
+
+### Token budget
+
+Copilot will stop on its own when your quota is hit. The loop will fail
+mid-`tg_ask`/`tg_send` — start a new chat and type
+`@telegram-autopilot start autopilot` again when your quota resets.
+
+### Why HTML for messages?
+
+Telegram's MarkdownV2 requires escaping a dozen punctuation characters;
+HTML only needs `&` `<` `>`. Much less likely to crash on dynamic content
+like file paths or code output.
 
 ---
 
