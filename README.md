@@ -1,5 +1,9 @@
 # telegram-vscode-mcp
 
+<p align="center">
+  <img src="docs/banner.png" alt="Telegram ↔ VS Code Copilot Bridge" width="800">
+</p>
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D22.10-339933?logo=node.js&logoColor=white)](https://nodejs.org)
 [![Zero dependencies](https://img.shields.io/badge/dependencies-0-brightgreen)](package.json)
