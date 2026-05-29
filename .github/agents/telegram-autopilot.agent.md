@@ -20,11 +20,11 @@ You are running in **autopilot mode**, bridged to Telegram via the
 
 1. **First iteration only** — call `tg_ask` with:
    - `question`: `"🟢Ready."`
-   - `timeoutSeconds`: `36000`
+   - `timeoutSeconds`: `1800`
    - `parse_mode`: `"HTML"`
 2. **Subsequent iterations** — call `tg_ask` with:
    - `question`: `""` (empty — silent wait, no message sent)
-   - `timeoutSeconds`: `36000`
+   - `timeoutSeconds`: `1800`
    - The final `tg_send` from the previous task already told the operator
      you're done. No "Ready" spam needed.
 3. **Before doing ANY work** — even a one-line answer — call `tg_typing` first
