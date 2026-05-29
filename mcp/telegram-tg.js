@@ -144,8 +144,9 @@ async function tgTyping(seconds, action) {
 }
 
 async function tgAsk(question, timeoutSeconds, parseMode) {
-  const timeoutMs = Math.max(5, Math.min(3600, Number(timeoutSeconds) || 300)) * 1000;
+  const timeoutMs = Math.max(5, Math.min(36000, Number(timeoutSeconds) || 300)) * 1000;
   const pm = normalizeParseMode(parseMode);
+  const silent = !question || !question.trim();
 
   // Drain pending updates so we never pick up an old, unrelated message.
   try {
@@ -158,20 +159,21 @@ async function tgAsk(question, timeoutSeconds, parseMode) {
     process.stderr.write(`[telegram-tg] drain warning: ${e.message}\n`);
   }
 
-  // Send the question.
-  // When parse_mode is set, the caller is responsible for escaping per Telegram rules.
-  // The trailing prompt "(reply to this chat — agent is waiting)" stays plain in HTML
-  // (parens/dashes are safe) but would need escaping in MarkdownV2 — so for MarkdownV2
-  // we drop the parenthetical to avoid hard-coding escapes.
-  // const trailer = (pm === 'MarkdownV2' || pm === 'Markdown') ? '' : '\n\n(reply to this chat — agent is waiting)';
-  const trailer = (pm === 'MarkdownV2' || pm === 'Markdown') ? '' : '';
-  const sendPayload = {
-    chat_id: config.chat_id,
-    text: pm ? `${question}${trailer}` : `❓ ${question}${trailer}`,
-  };
-  if (pm) sendPayload.parse_mode = pm;
-  const sent = await tgApi('sendMessage', sendPayload);
-  const questionMessageId = sent.message_id;
+  let questionMessageId = null;
+  let sentDate = Math.floor(Date.now() / 1000);
+
+  if (!silent) {
+    // Send the question.
+    const trailer = '';
+    const sendPayload = {
+      chat_id: config.chat_id,
+      text: pm ? `${question}${trailer}` : `❓ ${question}${trailer}`,
+    };
+    if (pm) sendPayload.parse_mode = pm;
+    const sent = await tgApi('sendMessage', sendPayload);
+    questionMessageId = sent.message_id;
+    sentDate = sent.date;
+  }
 
   // Long-poll for a reply.
   const deadline = Date.now() + timeoutMs;
@@ -197,12 +199,12 @@ async function tgAsk(question, timeoutSeconds, parseMode) {
       if (String(m.chat.id) !== String(config.chat_id)) continue;
       // Accept any message from the configured chat after our question was sent.
       // (Date check guards against clock-skew weirdness.)
-      if (m.date && m.date * 1000 < sent.date * 1000 - 5000) continue;
+      if (m.date && m.date * 1000 < sentDate * 1000 - 5000) continue;
       const text = m.text || m.caption || '(non-text message)';
       return text;
     }
   }
-  throw new Error(`No Telegram reply within ${timeoutMs / 1000}s (question message_id=${questionMessageId}).`);
+  throw new Error(`No Telegram reply within ${timeoutMs / 1000}s${questionMessageId ? ` (question message_id=${questionMessageId})` : ' (silent poll)'}. Timed out.`);
 }
 
 // ---------- MCP stdio JSON-RPC plumbing ----------
@@ -227,15 +229,14 @@ const TOOLS = [
   },
   {
     name: 'tg_ask',
-    description: 'Ask the operator a question via Telegram and BLOCK until they reply. Returns the reply text. Use for confirmations, choices, or clarifications when the agent is uncertain. Pass parse_mode:"HTML" to render bold/code/links in the question.',
+    description: 'Ask the operator a question via Telegram and BLOCK until they reply. Returns the reply text. Use for confirmations, choices, or clarifications when the agent is uncertain. Pass parse_mode:"HTML" to render bold/code/links in the question. If question is empty or omitted, silently waits for the next message without sending anything (useful for autopilot loops after the initial Ready).',
     inputSchema: {
       type: 'object',
       properties: {
-        question:       { type: 'string', description: 'The question to send.' },
-        timeoutSeconds: { type: 'number', description: 'Max seconds to wait for a reply (default 300, max 3600).' },
+        question:       { type: 'string', description: 'The question to send. If empty or omitted, silently polls for the next message without sending anything.' },
+        timeoutSeconds: { type: 'number', description: 'Max seconds to wait for a reply (default 300, max 36000).' },
         parse_mode:     PARSE_MODE_SCHEMA,
       },
-      required: ['question'],
     },
   },
   {
@@ -282,8 +283,7 @@ async function handle(req) {
         if (!args.text) throw new Error('tg_send requires "text".');
         text = await tgSend(String(args.text), args.parse_mode);
       } else if (name === 'tg_ask') {
-        if (!args.question) throw new Error('tg_ask requires "question".');
-        text = await tgAsk(String(args.question), args.timeoutSeconds, args.parse_mode);
+        text = await tgAsk(args.question ? String(args.question) : '', args.timeoutSeconds, args.parse_mode);
       } else if (name === 'tg_typing') {
         text = await tgTyping(args.seconds, args.action);
       } else {
