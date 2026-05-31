@@ -371,6 +371,63 @@ and relays it to Telegram.
 
 ---
 
+## 7. Skills — Teaching the Worker
+
+The worker has no built-in memory. Skills are markdown files that give it domain knowledge on demand.
+
+### How it works
+
+VS Code auto-scans `SKILL.md` frontmatter at startup and injects a `<skill>` summary block into every conversation. When the worker encounters a matching task, it reads the full file before executing.
+
+**Zero extra token cost** — only frontmatter is injected automatically. Full content is read on demand.
+
+### Where to put skills
+
+Add a skills folder to your `.code-workspace`:
+```json
+{ "path": ".github/skills" }
+```
+
+> **Recommended:** `.github/skills/` inside your workspace — git-tracked, no tool dependency, works with VS Code out of the box.
+>
+> **Power users (Claude Code CLI too):** use `~/.claude/skills/` — one skill file works for both Copilot and Claude Code.
+
+### Skill file format
+
+```
+.github/skills/
+└── my-skill/
+    └── SKILL.md
+```
+
+Minimal `SKILL.md`:
+```yaml
+---
+name: my-skill
+description: What this skill does. TRIGGER when user mentions X, Y, Z.
+---
+
+# My Skill
+
+## Steps
+1. Do this first
+2. Then this
+```
+
+### Wiring to the worker
+
+Add to your `copilot-instructions.md`:
+```md
+## Worker Rules
+- Before any domain task → always read_file the matching SKILL.md first.
+- Never rely on the system prompt summary alone.
+```
+
+**The golden rule:**
+> Always spawn `@vscode-worker` from within the workspace session. Fresh window = no workspace = skills invisible.
+
+---
+
 ## 🎮 Fun Fact
 
 The architecture of this hybrid mode was heavily inspired by **StarCraft (SC2)** RTS mechanics.
