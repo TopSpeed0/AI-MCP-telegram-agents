@@ -369,6 +369,29 @@ Status flow: `pending` → `working` (Copilot picks it up) → `done` or `error`
 One task at a time. Hermes polls the file for completion, reads `result`,
 and relays it to Telegram.
 
+### Non-blocking queue watcher
+
+By default, polling the queue blocks the orchestrator while it waits. To stay
+responsive, use one of these approaches:
+
+**Option A — Hermes Overmind (built-in cron):**
+Hermes schedules an internal cron job after writing the task. The cron polls
+every 30 seconds and sends a Telegram notification when done — Hermes stays
+free to chat in the meantime.
+
+**Option B — Standalone watcher (any setup):**
+Run `queue-watch.js` in a side terminal. It polls `.vscode-queue.json` every
+10 seconds and sends a Telegram message when the task completes, then exits.
+
+```bash
+node queue-watch.js
+# or custom interval/path:
+node queue-watch.js --interval 5000 --queue /path/to/.vscode-queue.json
+```
+
+Requires the same `.telegram-config` (or env vars) as the MCP server.
+Zero dependencies — pure Node.js.
+
 ---
 
 ## 7. Skills — Teaching the Worker
