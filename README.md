@@ -320,6 +320,59 @@ The hybrid installer will:
 5. Open this folder in VS Code. The `vscode-queue` MCP server is already
    registered in `.vscode/mcp.json`.
 
+### Hermes Installation Layout
+
+After `hermes gateway install`, Hermes creates the following on Windows:
+
+```
+C:\Users\<username>\AppData\Local\hermes\
+├── hermes-agent\          ← source code + venv (pythonw.exe lives here)
+│   └── venv\Scripts\
+│       ├── hermes.exe
+│       └── pythonw.exe    ← headless runner (no console window)
+├── gateway-service\
+│   └── Hermes_Gateway.cmd ← startup script used by the Scheduled Task
+├── config.yaml            ← main config
+├── .env                   ← API keys / secrets
+├── skills\                ← agent skills
+└── state.db               ← session store (SQLite)
+```
+
+**Windows Scheduled Task (auto-start on logon):**
+
+| Field | Value |
+|-------|-------|
+| Task name | `Hermes_Gateway` |
+| Trigger | `MSFT_TaskLogonTrigger` — runs at user logon |
+| Script | `%LOCALAPPDATA%\hermes\gateway-service\Hermes_Gateway.cmd` |
+| Process | `pythonw.exe -m hermes_cli.main gateway run` (headless, no console) |
+| Status | Running silently in background |
+
+> **CISO / Security note:** The Scheduled Task runs only under your user account (not SYSTEM).
+> To disable auto-start: open Task Scheduler → `Hermes_Gateway` → Disable.
+> To start manually instead, use the Desktop shortcut (see below).
+
+**Create a manual Desktop shortcut** (run once in PowerShell after install):
+
+```powershell
+# Creates shortcut on Desktop — works with or without OneDrive
+.\create-hermes-shortcut.ps1
+```
+
+Or run inline:
+
+```powershell
+$desktop = if ($env:OneDrive) { "$env:OneDrive\Desktop" } else { "$env:USERPROFILE\Desktop" }
+$ws  = New-Object -ComObject WScript.Shell
+$lnk = $ws.CreateShortcut("$desktop\Hermes Gateway (Start).lnk")
+$lnk.TargetPath      = "$env:LOCALAPPDATA\hermes\gateway-service\Hermes_Gateway.cmd"
+$lnk.WorkingDirectory = "$env:LOCALAPPDATA\hermes\hermes-agent"
+$lnk.WindowStyle     = 7   # minimised / hidden
+$lnk.Description     = "Start Hermes Gateway"
+$lnk.Save()
+Write-Host "Shortcut created at $desktop"
+```
+
 ### Running the Hybrid
 
 ```bash
