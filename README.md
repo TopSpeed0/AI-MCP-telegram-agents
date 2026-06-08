@@ -1,4 +1,4 @@
-# telegram-vscode-mcp
+# AI-MCP-telegram-agents
 
 <p align="center">
   <img src="docs/banner.png" alt="Telegram ↔ VS Code Copilot Bridge" width="800">
@@ -82,7 +82,7 @@ account session.
 This project does the opposite: it exposes the **minimum** surface needed for
 **human-in-the-loop agent control** from Telegram.
 
-|                          | **telegram-vscode-mcp** (this)            | **chigwell/telegram-mcp**                   |
+|                          | **AI-MCP-telegram-agents** (this)          | **chigwell/telegram-mcp**                   |
 |--------------------------|-------------------------------------------|---------------------------------------------|
 | Auth                     | Bot token (BotFather)                     | Personal Telegram account (session string)  |
 | Tools                    | 2 — `tg_send`, `tg_ask`                   | 80+ (chats, groups, media, admin, etc.)     |
@@ -156,8 +156,8 @@ See also: [ClaudeCodeTelgMCP](https://github.com/TopSpeed0/ClaudeCodeTelgMCP) �
 After cloning, run the interactive installer:
 
 ```bash
-git clone https://github.com/<you>/telegram-vscode-mcp.git
-cd telegram-vscode-mcp
+git clone https://github.com/TopSpeed0/AI-MCP-telegram-agents.git
+cd AI-MCP-telegram-agents
 node setup.js          # or: npm run setup
 ```
 
