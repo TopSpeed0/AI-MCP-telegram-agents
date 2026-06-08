@@ -19,6 +19,46 @@ Protocol](https://modelcontextprotocol.io/) (MCP) server.
 Lets a Copilot agent **ask you questions and receive instructions over
 Telegram**, so you can drive long-running coding sessions from your phone.
 
+> **Architecture Note (2026):** The `@telegram-autopilot` / `@vscode-worker` patterns described here are the **v1 foundation**. The recommended setup has evolved into a **three-worker architecture** where Hermes is the Overmind and two standalone CLI daemons run as workers — see [Multi-Worker Architecture](#multi-worker-architecture-advanced) below. The MCP server (`mcp/telegram-tg.js`) in this repo is still used by all workers as their Telegram tool.
+
+---
+
+## Multi-Worker Architecture (Advanced)
+
+The production setup evolved beyond VS Code into a fully standalone, multi-worker system. All three repos work together — and each worker also functions **independently** without the others (generic mode).
+
+```
+You (Telegram)
+    │
+    ▼
+Hermes Agent — Overmind (always-on, owns Telegram)
+    ├── General tasks → handles directly
+    ├── Coding/workspace tasks → .copilot-queue.json
+    │                               ↓
+    │                   Copilot CLI Daemon (standalone, any cwd)
+    │                   → TopSpeed0/Copilot-CLI-Telegram-MCP
+    │
+    └── Heavy/ONTAP tasks → .claude-queue.json
+                                ↓
+                    Claude Code Daemon (workspace-aware)
+                    → TopSpeed0/ClaudeCodeTelgMCP
+```
+
+| Repo | Worker | Queue file | Best for |
+|------|--------|------------|----------|
+| **This repo** | VS Code Copilot Agent (v1) | `.vscode-queue.json` | VS Code-integrated workflows |
+| [Copilot-CLI-Telegram-MCP](https://github.com/TopSpeed0/Copilot-CLI-Telegram-MCP) | Copilot CLI daemon | `.copilot-queue.json` | Generic tasks, any directory |
+| [ClaudeCodeTelgMCP](https://github.com/TopSpeed0/ClaudeCodeTelgMCP) | Claude Code daemon | `.claude-queue.json` | Heavy reasoning, workspace tools |
+
+### Key design decisions
+
+- **Generic + local**: each daemon works standalone (direct Telegram messages) AND as a Hermes worker (queue polling) — same process, no mode switching
+- **Skills**: both CLI daemons load skills from `~/.claude/skills/` — one skill library, two workers
+- **No bot-to-bot**: Hermes delegates via shared JSON files, not Telegram (bots can't message other bots)
+- **Corporate TLS**: all three use `node --use-system-ca` so they work behind MITM proxies
+
+---
+
 Two tools are exposed to the agent:
 
 | Tool | Behavior |
