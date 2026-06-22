@@ -15,3 +15,6 @@ SESSION-SUMMARY.md
 Thumbs.db
 *.log
 node_modules/
+
+SESSION-SUMMARY.md
+session-log-*.md
