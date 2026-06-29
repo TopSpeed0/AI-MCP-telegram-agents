@@ -101,43 +101,6 @@ It's an independent Node implementation against the public Bot API.
 
 ---
 
-## Multi-Worker Architecture (Advanced)
-
-This MCP server was designed as a VS Code Copilot bridge, but it fits naturally into a **multi-worker pattern** where a persistent AI Overmind (such as [Hermes Agent](https://hermes-agent.nousresearch.com/)) delegates tasks to multiple specialized workers.
-
-```
-Telegram
-   │
-   ▼
-Hermes Agent (Overmind — always-on, Telegram gateway)
-   │
-   ├─── VS Code Copilot worker  ←  via .vscode-queue.json  (this repo)
-   │
-   └─── Claude Code daemon      ←  via .claude-queue.json  (ClaudeCodeTelgMCP)
-```
-
-**How it works:**
-- Hermes handles Telegram, memory, scheduling, and orchestration
-- Hermes writes a task JSON to `.vscode-queue.json`
-- The VS Code Copilot worker (this repo's MCP server) picks it up and executes it
-- The result is written back to the queue file
-- Hermes polls the file, reads the result, and replies to Telegram
-
-**Why two workers?**
-- Each worker uses a separate token budget (VS Code Copilot quota vs Claude Code quota)
-- Tasks can be routed to the right worker based on context
-- Workers can run in parallel
-
-**Queue file protocol:**
-```json
-{ "id": "task-001", "task": "...", "context": "...", "status": "pending", "created": "ISO8601", "updated": "ISO8601" }
-```
-Status flow: `pending` → `working` → `done` | `error`
-
-See also: [ClaudeCodeTelgMCP](https://github.com/TopSpeed0/ClaudeCodeTelgMCP) — the Claude Code worker counterpart.
-
----
-
 ## Requirements
 
 - **Node.js 22.10+** (uses built-in `https` + `--use-system-ca`, no `npm install` needed)
