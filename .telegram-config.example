@@ -1,5 +1,20 @@
 {
-  "_comment": "Alternative to .vscode/mcp.json inputs. Copy to .telegram-config and fill in.",
+  "_comment": "Copy to .telegram-config and fill in. bot_token and chat_id are required.",
   "bot_token": "PUT-YOUR-BOT-TOKEN-HERE",
-  "chat_id": "PUT-YOUR-NUMERIC-CHAT-ID-HERE"
+  "chat_id": "PUT-YOUR-NUMERIC-CHAT-ID-HERE",
+  "agents": {
+    "_comment": "Optional. Configure worker daemons for Hermes Overmind task delegation.",
+    "copilot": {
+      "queue": "C:\\path\\to\\Copilot-CLI-Telegram-MCP\\.copilot-queue.json",
+      "description": "Copilot CLI Daemon (TopSpeed0/Copilot-CLI-Telegram-MCP)"
+    },
+    "claude": {
+      "queue": "C:\\path\\to\\ClaudeCodeTelgMCP\\.claude-queue.json",
+      "description": "Claude Code Daemon (TopSpeed0/ClaudeCodeTelgMCP)"
+    },
+    "vscode": {
+      "queue": "C:\\path\\to\\AI-MCP-telegram-agents\\.vscode-queue.json",
+      "description": "VS Code worker (this repo, legacy)"
+    }
+  }
 }
