@@ -16,5 +16,8 @@ Thumbs.db
 *.log
 node_modules/
 
+# monitoring and session logs
+/morning-reports/*
+/morning-reports
 SESSION-SUMMARY.md
 session-log-*.md
