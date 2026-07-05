@@ -1,5 +1,6 @@
 # Local secrets / state — never commit these
 .telegram-config
+~/.claude/skills/.skills-index.txt
 .telegram-state.json
 .vscode-queue.json
 .env
