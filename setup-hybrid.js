@@ -245,9 +245,30 @@ async function main() {
     if (r.status !== 0) warn('Gateway setup may need manual completion.');
   }
 
-  // ─── Step 7: Corporate TLS proxy fix (Windows only) ───
+  // ─── Step 7: Update Hermes_Gateway scheduled task ───
   if (process.platform === 'win32') {
-    info('Step 7: Checking corporate TLS proxy...');
+    info('Step 7: Updating Hermes_Gateway scheduled task...');
+    const wrapperPath = path.join(ROOT, 'scripts', 'Start-Hermes.ps1');
+    const psUpdate = [
+      `$task = Get-ScheduledTask -TaskName 'Hermes_Gateway' -ErrorAction SilentlyContinue`,
+      `if (-not $task) { Write-Host 'NOTFOUND'; exit 0 }`,
+      `$action = New-ScheduledTaskAction -Execute 'pwsh.exe' -Argument ('-NoProfile -WindowStyle Hidden -File "' + '${wrapperPath.replace(/\\/g, '\\\\')}' + '"')`,
+      `Set-ScheduledTask -TaskName 'Hermes_Gateway' -Action $action | Out-Null`,
+      `Write-Host 'UPDATED'`,
+    ].join('; ');
+    const taskResult = run(`pwsh -NoProfile -Command "${psUpdate}"`) || '';
+    if (taskResult.includes('UPDATED')) {
+      ok('Hermes_Gateway task updated → runs sync-skills + gateway on next enable');
+    } else if (taskResult.includes('NOTFOUND')) {
+      info('Hermes_Gateway task not found — skipping (shortcut is the launcher)');
+    } else {
+      warn(`Could not update scheduled task (needs admin?): ${taskResult.substring(0, 80)}`);
+    }
+  }
+
+  // ─── Step 8: Corporate TLS proxy fix (Windows only) ───
+  if (process.platform === 'win32') {
+    info('Step 8: Checking corporate TLS proxy...');
     const certDir = path.join(hermesConfigDir);
     const combinedCa = path.join(certDir, 'combined-ca.pem');
 
@@ -295,8 +316,8 @@ async function main() {
     }
   }
 
-  // ─── Step 8: Verify setup ───
-  info('Step 8: Verifying setup...');
+  // ─── Step 9: Verify setup ───
+  info('Step 9: Verifying setup...');
   let allGood = true;
 
   // Check model config
