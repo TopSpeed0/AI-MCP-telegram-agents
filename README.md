@@ -25,30 +25,30 @@ Telegram**, so you can drive long-running coding sessions from your phone.
 
 ## Multi-Worker Architecture (Advanced)
 
-The production setup evolved beyond VS Code into a fully standalone, multi-worker system. All three repos work together — and each worker also functions **independently** without the others (generic mode).
+The production setup evolved beyond VS Code into a fully standalone, multi-worker system. Each worker functions **independently** without the others (generic mode), and you can register **any number of workers** in `.telegram-config`.
 
 ```
 You (Telegram)
     │
     ▼
 Hermes Agent — Overmind (always-on, owns Telegram)
-    ├── General tasks → handles directly
-    ├── Coding/workspace tasks → .copilot-queue.json
-    │                               ↓
-    │                   Copilot CLI Daemon (standalone, any cwd)
-    │                   → TopSpeed0/Copilot-CLI-Telegram-MCP
+    ├── General tasks → handles directly (web, research, cron, memory, MCP)
     │
-    └── Heavy/ONTAP tasks → .claude-queue.json
-                                ↓
-                    Claude Code Daemon (workspace-aware)
-                    → TopSpeed0/ClaudeCodeTelgMCP
+    ├── worker-a → .<worker-a>-queue.json ┐
+    ├── worker-b → .<worker-b>-queue.json ├─ any number of workers
+    └── worker-n → .<worker-n>-queue.json ┘
+                         ↓
+             Worker daemon (standalone process)
+             reads queue, executes, writes result
 ```
 
-| Repo | Worker | Queue file | Best for |
-|------|--------|------------|----------|
-| **This repo** | VS Code Copilot Agent (v1) | `.vscode-queue.json` | VS Code-integrated workflows |
-| [Copilot-CLI-Telegram-MCP](https://github.com/TopSpeed0/Copilot-CLI-Telegram-MCP) | Copilot CLI daemon | `.copilot-queue.json` | Generic tasks, any directory |
-| [ClaudeCodeTelgMCP](https://github.com/TopSpeed0/ClaudeCodeTelgMCP) | Claude Code daemon | `.claude-queue.json` | Heavy reasoning, workspace tools |
+Workers are defined in `.telegram-config` under `agents` — add as many as you need. Example workers:
+
+| Repo | Worker | Best for |
+|------|--------|----------|
+| [Copilot-CLI-Telegram-MCP](https://github.com/TopSpeed0/Copilot-CLI-Telegram-MCP) | Copilot CLI daemon | General tasks, any directory |
+| [ClaudeCodeTelgMCP](https://github.com/TopSpeed0/ClaudeCodeTelgMCP) | Claude Code daemon | Heavy reasoning, workspace tools |
+| **This repo** (`@vscode-worker`) | VS Code Copilot Agent (v1) | VS Code-integrated workflows (legacy) |
 
 ### Key design decisions
 
@@ -296,18 +296,16 @@ You (Telegram)
     ▼
 Hermes Agent — Overmind (always-on, owns Telegram)
     ├── General tasks → handles directly (web, research, cron, memory, MCP)
-    ├── Coding/workspace tasks → .copilot-queue.json
-    │                               ↓
-    │                   Copilot CLI Daemon (standalone, any cwd)
-    │                   → TopSpeed0/Copilot-CLI-Telegram-MCP
     │
-    └── Heavy/ONTAP tasks → .claude-queue.json
-                                ↓
-                    Claude Code Daemon (workspace-aware)
-                    → TopSpeed0/ClaudeCodeTelgMCP
+    ├── worker-a → .<worker-a>-queue.json ┐
+    ├── worker-b → .<worker-b>-queue.json ├─ any number of workers
+    └── worker-n → .<worker-n>-queue.json ┘
+                         ↓
+             Worker daemon (standalone process)
+             reads queue, executes, writes result
 ```
 
-VS Code Copilot (this repo's `@vscode-worker`) remains available as a **legacy option** for workflows that need the VS Code editor directly.
+Register any number of workers in `.telegram-config` under `agents`. VS Code Copilot (this repo's `@vscode-worker`) is one possible worker — available as a **legacy option** for workflows that need the VS Code editor directly.
 
 ### Worker queue paths
 
