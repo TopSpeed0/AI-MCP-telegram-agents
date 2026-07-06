@@ -19,43 +19,7 @@ Protocol](https://modelcontextprotocol.io/) (MCP) server.
 Lets a Copilot agent **ask you questions and receive instructions over
 Telegram**, so you can drive long-running coding sessions from your phone.
 
-> **Architecture Note (2026):** The `@telegram-autopilot` / `@vscode-worker` patterns described here are the **v1 foundation**. The recommended setup has evolved into a **three-worker architecture** where Hermes is the Overmind and two standalone CLI daemons run as workers — see [Multi-Worker Architecture](#multi-worker-architecture-advanced) below. The MCP server (`mcp/telegram-tg.js`) in this repo is still used by all workers as their Telegram tool.
-
----
-
-## Multi-Worker Architecture (Advanced)
-
-The production setup evolved beyond VS Code into a fully standalone, multi-worker system. Each worker functions **independently** without the others (generic mode), and you can register **any number of workers** in `.telegram-config`.
-
-```
-You (Telegram)
-    │
-    ▼
-Hermes Agent — Overmind (always-on, owns Telegram)
-    ├── General tasks → handles directly (web, research, cron, memory, MCP)
-    │
-    ├── worker-a → .<worker-a>-queue.json ┐
-    ├── worker-b → .<worker-b>-queue.json ├─ any number of workers
-    └── worker-n → .<worker-n>-queue.json ┘
-                         ↓
-             Worker daemon (standalone process)
-             reads queue, executes, writes result
-```
-
-Workers are defined in `.telegram-config` under `agents` — add as many as you need. Example workers:
-
-| Repo | Worker | Best for |
-|------|--------|----------|
-| [Copilot-CLI-Telegram-MCP](https://github.com/TopSpeed0/Copilot-CLI-Telegram-MCP) | Copilot CLI daemon | General tasks, any directory |
-| [ClaudeCodeTelgMCP](https://github.com/TopSpeed0/ClaudeCodeTelgMCP) | Claude Code daemon | Heavy reasoning, workspace tools |
-| **This repo** (`@vscode-worker`) | VS Code Copilot Agent (v1) | VS Code-integrated workflows (legacy) |
-
-### Key design decisions
-
-- **Generic + local**: each daemon works standalone (direct Telegram messages) AND as a Hermes worker (queue polling) — same process, no mode switching
-- **Skills**: both CLI daemons load skills from `~/.claude/skills/` — one skill library, two workers
-- **No bot-to-bot**: Hermes delegates via shared JSON files, not Telegram (bots can't message other bots)
-- **Corporate TLS**: all three use `node --use-system-ca` so they work behind MITM proxies
+> **Architecture Note (2026):** The `@telegram-autopilot` / `@vscode-worker` patterns described here are the **v1 foundation**. The recommended production setup uses **Hermes as Overmind** with any number of standalone worker daemons — see [§6 Hybrid mode](#6-hybrid-mode--hermes-overmind--multi-worker) for the full picture. The MCP server (`mcp/telegram-tg.js`) in this repo is still used by all workers as their Telegram tool.
 
 ---
 
