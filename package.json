@@ -1,6 +1,6 @@
 {
   "name": "telegram-vscode-mcp",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Zero-dependency Telegram MCP server for VS Code Copilot — ask/send tools for agent autopilot over Telegram.",
   "bin": {
     "telegram-tg": "mcp/telegram-tg.js"
