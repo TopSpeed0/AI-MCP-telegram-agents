@@ -169,63 +169,43 @@ async function main() {
   // ─── Step 5: Inject delegation environment_hint ───
   info('Step 5: Injecting hybrid delegation instructions...');
 
-  const queuePath = path.resolve(ROOT, '.vscode-queue.json').replace(/\\/g, '/');
-  const hint = [
-    'YOU ARE A HYBRID AGENT. A VS Code Copilot worker runs in parallel, polling a queue file for tasks from you.',
-    '',
-    'DELEGATION PROTOCOL - use this for ANY task requiring workspace access (file editing, terminal commands, code, infrastructure):',
-    `1. Use your file_write tool to write to: ${queuePath}`,
-    '2. Write this JSON structure (update id, task, timestamps):',
-    '   {"id": "task-001", "task": "description of what to do", "context": "optional extra context", "status": "pending", "created": "<ISO timestamp>", "updated": "<ISO timestamp>"}',
-    '3. After writing, poll the same file with file_read every 10 seconds',
-    '4. When "status" changes to "done", read the "result" field and send it to the user',
-    '5. When "status" changes to "error", report the error to the user',
-    '6. Increment the task id for each new task (task-001, task-002, etc.)',
-    '',
-    'CRITICAL RULES:',
-    '- NEVER ask users for credentials or connection details - the VS Code worker has everything',
-    '- Tell the user you are delegating to VS Code and waiting for the result',
-    '- For simple chat, greetings, general knowledge - handle directly without delegating',
-  ].join('\n');
-
-  // Read config, replace environment_hint using hermes config set for simple
-  // values, and direct YAML edit for the multiline environment_hint.
-  // Strategy: use `hermes config set` which handles YAML formatting correctly.
-  const hintOneLine = hint.replace(/\n/g, '\\n');
-  const setResult = run(`hermes config set agent.environment_hint "${hintOneLine.replace(/"/g, '\\"')}"`);
-  if (setResult && setResult.includes('Set')) {
-    ok('Delegation instructions injected via hermes config set');
-  } else if (fileExists(hermesConfigPath)) {
-    // Fallback: direct YAML edit
-    info('hermes config set failed — writing YAML directly...');
-    let yaml = fs.readFileSync(hermesConfigPath, 'utf-8');
-    // Match environment_hint with any value format (block scalar, quoted, folded, or escaped multiline)
-    const hintRegex = /  environment_hint:[\s\S]*?(?=\n  [a-z_]|\n[a-z]|\n$)/;
-    const yamlHint = '  environment_hint: |\n' + hint.split('\n').map(l => '    ' + l).join('\n');
-    if (yaml.match(hintRegex)) {
-      yaml = yaml.replace(hintRegex, yamlHint);
-    } else if (yaml.includes('agent:')) {
-      // No environment_hint yet — insert after environment_probe or at end of agent section
-      if (yaml.includes('environment_probe:')) {
-        yaml = yaml.replace(
-          /(  environment_probe:.*\n)/,
-          `$1${yamlHint}\n`
-        );
-      } else {
-        yaml = yaml.replace(
-          /(agent:\n)/,
-          `$1${yamlHint}\n`
-        );
-      }
-    } else {
-      // No agent section at all — append
-      yaml += `\nagent:\n${yamlHint}\n`;
-    }
-    fs.writeFileSync(hermesConfigPath, yaml);
-    ok('Delegation instructions injected into config.yaml');
+  // Read .hermes.md as the canonical hint — generic, no personal paths
+  const hermesMdPath = path.join(ROOT, '.hermes.md');
+  let hint = '';
+  if (fileExists(hermesMdPath)) {
+    hint = fs.readFileSync(hermesMdPath, 'utf-8').trim();
+    ok('Loaded delegation instructions from .hermes.md');
   } else {
-    warn('Could not find Hermes config — set environment_hint manually');
-    warn('See README.md Section 6 for the delegation instructions.');
+    warn('.hermes.md not found — skipping environment_hint injection');
+  }
+
+  if (hint) {
+    const hintOneLine = hint.replace(/\n/g, '\\n');
+    const setResult = run(`hermes config set agent.environment_hint "${hintOneLine.replace(/"/g, '\\"')}"`);
+    if (setResult && setResult.includes('Set')) {
+      ok('Delegation instructions injected via hermes config set');
+    } else if (fileExists(hermesConfigPath)) {
+      // Fallback: direct YAML edit
+      info('hermes config set failed — writing YAML directly...');
+      let yaml = fs.readFileSync(hermesConfigPath, 'utf-8');
+      const hintRegex = /  environment_hint:[\s\S]*?(?=\n  [a-z_]|\n[a-z]|\n$)/;
+      const yamlHint = '  environment_hint: |\n' + hint.split('\n').map(l => '    ' + l).join('\n');
+      if (yaml.match(hintRegex)) {
+        yaml = yaml.replace(hintRegex, yamlHint);
+      } else if (yaml.includes('agent:')) {
+        if (yaml.includes('environment_probe:')) {
+          yaml = yaml.replace(/(  environment_probe:.*\n)/, `$1${yamlHint}\n`);
+        } else {
+          yaml = yaml.replace(/(agent:\n)/, `$1${yamlHint}\n`);
+        }
+      } else {
+        yaml += `\nagent:\n${yamlHint}\n`;
+      }
+      fs.writeFileSync(hermesConfigPath, yaml);
+      ok('Delegation instructions injected into config.yaml');
+    } else {
+      warn('Could not find Hermes config — set environment_hint manually');
+    }
   }
 
   // ─── Step 6: Configure Telegram gateway ───
@@ -332,33 +312,20 @@ async function main() {
   // Check environment_hint is set
   if (fileExists(hermesConfigPath)) {
     const cfgContent = fs.readFileSync(hermesConfigPath, 'utf-8');
-    if (cfgContent.includes('HYBRID AGENT') && cfgContent.includes('vscode-queue')) {
+    if (cfgContent.includes('environment_hint')) {
       ok('Delegation instructions: present');
     } else {
-      err('Delegation instructions NOT found in config — hybrid won\'t delegate!');
+      warn('environment_hint not found in config — delegation routing may not work');
       allGood = false;
     }
   }
 
-  // Check queue MCP server config exists
-  const mcpConfigPath = path.join(ROOT, '.vscode', 'mcp.json');
-  if (fileExists(mcpConfigPath)) {
-    const mcpContent = fs.readFileSync(mcpConfigPath, 'utf-8');
-    if (mcpContent.includes('vscode-queue')) {
-      ok('VS Code MCP server: vscode-queue registered');
-    } else {
-      warn('vscode-queue not found in .vscode/mcp.json — worker won\'t start');
-      allGood = false;
-    }
-  }
-
-  // Check worker agent file exists
-  const workerPath = path.join(ROOT, '.github', 'agents', 'vscode-worker.agent.md');
-  if (fileExists(workerPath)) {
-    ok('Worker agent: .github/agents/vscode-worker.agent.md');
+  // Check agents from .telegram-config
+  if (config.agents && Object.keys(config.agents).length > 0) {
+    const agentNames = Object.keys(config.agents).filter(k => !k.startsWith('_'));
+    ok(`Agents configured: ${agentNames.join(', ')}`);
   } else {
-    err('vscode-worker.agent.md not found — @vscode-worker won\'t appear in Copilot');
-    allGood = false;
+    info('No agents configured — Hermes will handle all tasks directly (no delegation)');
   }
 
   // ─── Done ───
