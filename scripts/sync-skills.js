@@ -8,8 +8,19 @@ const fs   = require('fs');
 const path = require('path');
 const os   = require('os');
 
-const SKILLS_DIR = path.join(os.homedir(), '.claude', 'skills');
-const INDEX_FILE = path.join(SKILLS_DIR, '.skills-index.txt');
+// --- Load optional config for extra skills_dirs ---
+const CONFIG_FILE = path.join(__dirname, '..', '.telegram-config');
+let extraSkillsDirs = [];
+try {
+  const cfg = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf-8'));
+  if (Array.isArray(cfg.skills_dirs)) {
+    extraSkillsDirs = cfg.skills_dirs.map(d => d.replace(/^~/, os.homedir()));
+  }
+} catch { /* no config or parse error — silent, defaults apply */ }
+
+const DEFAULT_SKILLS_DIR = path.join(os.homedir(), '.claude', 'skills');
+const ALL_SKILLS_DIRS    = [...new Set([DEFAULT_SKILLS_DIR, ...extraSkillsDirs])];
+const INDEX_FILE         = path.join(DEFAULT_SKILLS_DIR, '.skills-index.txt');
 
 const STOP_WORDS = new Set([
   'when','user','the','and','for','this','with','that','from','are','via',
@@ -95,27 +106,42 @@ function extractKeywords(content, skillName) {
 }
 
 // --- Main ---
-if (!fs.existsSync(SKILLS_DIR)) {
-  console.error(`✗ Skills dir not found: ${SKILLS_DIR}`);
+
+// Ensure default skills dir exists
+if (!fs.existsSync(DEFAULT_SKILLS_DIR)) {
+  console.error(`✗ Default skills dir not found: ${DEFAULT_SKILLS_DIR}`);
   process.exit(1);
 }
 
-const dirs = fs.readdirSync(SKILLS_DIR).filter(f => {
-  try { return fs.statSync(path.join(SKILLS_DIR, f)).isDirectory(); } catch { return false; }
-});
-
+// Collect all skill entries across all dirs (name → first-seen wins, no duplicates)
+const seen  = new Set();
 const lines = [];
-for (const name of dirs.sort()) {
-  const mdPath = path.join(SKILLS_DIR, name, 'SKILL.md');
-  if (!fs.existsSync(mdPath)) continue;
-  try {
-    const content = fs.readFileSync(mdPath, 'utf-8');
-    const keywords = extractKeywords(content, name);
-    lines.push(`${name}:${keywords.join(' ')}`);
-  } catch (e) {
-    console.warn(`  ! Skipped ${name}: ${e.message}`);
+
+for (const skillsDir of ALL_SKILLS_DIRS) {
+  if (!fs.existsSync(skillsDir)) {
+    console.warn(`  ! Skipping missing dir: ${skillsDir}`);
+    continue;
+  }
+
+  const entries = fs.readdirSync(skillsDir).filter(f => {
+    try { return fs.statSync(path.join(skillsDir, f)).isDirectory(); } catch { return false; }
+  });
+
+  for (const name of entries.sort()) {
+    if (seen.has(name)) continue;          // first-seen wins (default dir takes priority)
+    const mdPath = path.join(skillsDir, name, 'SKILL.md');
+    if (!fs.existsSync(mdPath)) continue;
+    try {
+      const content  = fs.readFileSync(mdPath, 'utf-8');
+      const keywords = extractKeywords(content, name);
+      lines.push(`${name}:${keywords.join(' ')}`);
+      seen.add(name);
+    } catch (e) {
+      console.warn(`  ! Skipped ${name}: ${e.message}`);
+    }
   }
 }
 
 fs.writeFileSync(INDEX_FILE, lines.join('\n') + '\n', 'utf-8');
-console.log(`✓ Skills index: ${lines.length} skills → ${INDEX_FILE}`);
+const extra = ALL_SKILLS_DIRS.length > 1 ? ` (${ALL_SKILLS_DIRS.length} dirs)` : '';
+console.log(`✓ Skills index: ${lines.length} skills → ${INDEX_FILE}${extra}`);
