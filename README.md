@@ -150,6 +150,35 @@ by `setup.js`.
 > back to `.telegram-config`. Use this if you'd rather not have a file on
 > disk (e.g. CI, containers, or a secret manager).
 
+### Optional config keys
+
+Beyond `bot_token` and `chat_id`, `.telegram-config` supports:
+
+```json
+{
+  "bot_token": "...",
+  "chat_id": "...",
+  "skills_dirs": ["~/.claude/skills", "/path/to/more/skills"],
+  "pre_scripts": [
+    "\"$env:LOCALAPPDATA\\hermes\\hermes-agent\\venv\\Scripts\\python.exe\" \"$env:LOCALAPPDATA\\hermes\\scripts\\sync-skills.py\"",
+    "node --use-system-ca \"$WORKSPACE\\scripts\\sync-skills.js\""
+  ],
+  "post_scripts": [
+    "pwsh -NoProfile -File \"/path/to/your-post-startup-script.ps1\""
+  ],
+  "agents": { ... }
+}
+```
+
+| Key | Purpose |
+|-----|---------|
+| `skills_dirs` | Extra skill directories loaded at startup (on top of `~/.claude/skills/`) |
+| `pre_scripts` | Commands run **before** the gateway starts (skills sync, credential prep, etc.) |
+| `post_scripts` | Commands run **after** the gateway starts (credential refresh, service init, etc.) |
+| `agents` | Worker queue paths for Hermes delegation |
+
+`$env:LOCALAPPDATA` and `$WORKSPACE` are expanded automatically inside script strings.
+
 ---
 
 ## 4. Start the MCP server in VS Code
