@@ -496,6 +496,21 @@ The harvester maintains a registry of error signatures → skill to patch:
 
 > **This registry is bootstrapped from real cases.** Every new pitfall the harvester finds gets added here automatically (after user approval).
 
+## ⚠️ Critical: Two Skill Locations Must Stay in Sync
+
+Claude Code reads from `~/.claude/skills/`.  
+Hermes reads from `~/AppData/Local/hermes/skills/`.  
+**Both must be patched — writing to only one leaves the other agent blind.**
+
+The harvester must write pitfall patches to **both paths**, or run the existing `sync-skills.py` after patching.
+
+| Agent | Reads from |
+|-------|-----------|
+| Hermes (Telegram) | `~/AppData/Local/hermes/skills/` |
+| Claude Code (VS Code) | `~/.claude/skills/` |
+
+> Discovered July 13 2026: patches applied to hermes skills were NOT in `~/.claude/skills/` — claude code would have made the same mistakes again next session.
+
 ---
 
 ## Open Questions
