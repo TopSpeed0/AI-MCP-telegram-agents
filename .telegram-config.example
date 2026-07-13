@@ -19,11 +19,6 @@
     "\"C:\\Program Files\\PowerShell\\7\\pwsh.exe\" -NoLogo -NoProfile -File \"<path-to-post-script.ps1>\""
   ],
 
-  "_comment_tokens": "Optional. Named API tokens/keys used by Hermes or skills at runtime. Each entry has a name and key.",
-  "tokens": [
-    { "name": "VS_Code", "key": "PUT-YOUR-VSCODE-BOT-TOKEN-HERE" }
-  ],
-
   "_comment_agents": "Optional. Configure worker daemons for Hermes Overmind task delegation.",
   "agents": {
     "copilot": {
