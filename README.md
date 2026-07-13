@@ -19,7 +19,7 @@ Protocol](https://modelcontextprotocol.io/) (MCP) server.
 Lets a Copilot agent **ask you questions and receive instructions over
 Telegram**, so you can drive long-running coding sessions from your phone.
 
-> **Architecture Note (2026):** The `@telegram-autopilot` / `@vscode-worker` patterns described here are the **v1 foundation**. The recommended production setup uses **Hermes as Overmind** with any number of standalone worker daemons — see [§6 Hybrid mode](#6-hybrid-mode--hermes-overmind--multi-worker) for the full picture. The MCP server (`mcp/telegram-tg.js`) in this repo is still used by all workers as their Telegram tool.
+> **Architecture Note (2026):** The `@vscode-worker` pattern described here is the **v1 foundation**. The recommended production setup uses **Hermes as Overmind** with any number of standalone worker daemons — see [§6 Hybrid mode](#6-hybrid-mode--hermes-overmind--multi-worker) for the full picture. The MCP servers live in [VS_Code_Studio_MCP](https://github.com/TopSpeed0/VS_Code_Studio_MCP) — each worker is an independent repo, not a plugin of this one.
 
 ---
 
@@ -98,7 +98,7 @@ The installer will:
 5. Print the next steps.
 
 Then reload VS Code → open Copilot Chat (Agent mode) → type
-`@telegram-autopilot start autopilot` and go.
+`@vscode-worker start worker` and go.
 
 If you prefer the manual route, the step-by-step guide is below.
 
@@ -126,7 +126,7 @@ Either:
   `.vscode/mcp.json` snippet into your workspace's own `.vscode/mcp.json`, **or**
 - **Open this folder directly in VS Code** as a standalone workspace.
 
-The MCP server file is `mcp/telegram-tg.js`.
+The MCP server file is `mcp/telegram-tg.js` — lives in [VS_Code_Studio_MCP](https://github.com/TopSpeed0/VS_Code_Studio_MCP).
 
 ---
 
@@ -196,31 +196,29 @@ The agent should call `tg_send` and a message lands in your Telegram chat.
 
 ---
 
-## 5. Run the autopilot loop
+## 5. Run the worker loop
 
 The repo ships a Copilot agent at
-[`.github/agents/telegram-autopilot.agent.md`](.github/agents/telegram-autopilot.agent.md).
+[`.github/agents/vscode-worker.agent.md`](https://github.com/TopSpeed0/VS_Code_Studio_MCP/blob/main/.github/agents/vscode-worker.agent.md) (lives in [VS_Code_Studio_MCP](https://github.com/TopSpeed0/VS_Code_Studio_MCP)).
 
-In Copilot Chat, type:
+Open **VS_Code_Studio_MCP** in VS Code, then in Copilot Chat type:
 
 ```
-@telegram-autopilot start autopilot
+@vscode-worker start worker
 ```
 
-The agent begins the loop automatically — sends 🟢Ready. to Telegram and waits
-for your next instruction. Reply from your phone; Copilot does the work in
-VS Code and reports back.
+The agent begins the dual-input loop — sends 🟢 VS Code worker ready. via its own bot and waits
+for tasks from Hermes queue OR direct Telegram messages.
 
 > **Tip:** You can also click the `@` icon in the chat input and select
-> **telegram-autopilot** from the agent picker.
+> **vscode-worker** from the agent picker.
 
 Send `stop` from Telegram (or close the chat) to exit the loop.
 
 ### Token budget
 
-Copilot will stop on its own when your quota is hit. The loop will fail
-mid-`tg_ask`/`tg_send` — start a new chat and type
-`@telegram-autopilot start autopilot` again when your quota resets.
+Copilot will stop on its own when your quota is hit. Start a new chat and type
+`@vscode-worker start worker` again when your quota resets.
 
 ### Why HTML for messages?
 
@@ -298,7 +296,7 @@ Hermes Agent — Overmind (always-on, owns Telegram)
              reads queue, executes, writes result
 ```
 
-Register any number of workers in `.telegram-config` under `agents`. VS Code Copilot (this repo's `@vscode-worker`) is one possible worker — available as a **legacy option** for workflows that need the VS Code editor directly.
+Register any number of workers in `.telegram-config` under `agents`. Each worker is an **independent repo** with its own bot token, queue, and agent loop — not a plugin of this repo.
 
 ### Worker queue paths
 
@@ -354,9 +352,9 @@ hermes gateway start
 # Telegram: send a message to your bot!
 ```
 
-### VS Code worker (legacy)
+### VS Code worker
 
-The original `@vscode-worker` + `.vscode-queue.json` pattern still works — useful when you're already in VS Code and want Copilot Chat to handle a task. Start it with:
+The `@vscode-worker` lives in [VS_Code_Studio_MCP](https://github.com/TopSpeed0/VS_Code_Studio_MCP) — its own repo with its own bot token. It runs a dual-input loop: accepts tasks from Hermes queue AND direct Telegram messages via a dedicated VS_Code bot. Start it with:
 
 ```
 @vscode-worker start worker
@@ -419,7 +417,7 @@ Write-Host "Shortcut created at $desktop"
 
 ### Important Notes
 
-- **One bot token owner at a time.** Either Hermes gateway OR `@telegram-autopilot` can poll the bot — not both. Stop one before starting the other.
+- **One bot token owner at a time.** Hermes gateway owns the main bot. Each worker daemon has its **own bot token** — no conflicts.
 - **OAuth, not PAT.** GitHub Copilot's inference API requires an OAuth token (`gho_...`). PATs (`github_pat_...`) return "Personal Access Tokens are not supported". Use `gh auth login` via browser.
 - **Corporate TLS proxy?** Python's `certifi` doesn't include corporate root CAs. Export them from Windows cert store and set `SSL_CERT_FILE` in Hermes `.env`.
 
@@ -433,9 +431,10 @@ Hermes schedules an internal cron job after writing the task. The cron polls
 every 30 seconds and sends a Telegram notification when done — Hermes stays
 free to chat in the meantime.
 
-**Option B — Standalone watcher (any setup):**
-Run `queue-watch.js` in a side terminal. It polls `.vscode-queue.json` every
+**Option B — Standalone watcher (legacy, any setup):**
+`queue-watch.js` is still in this repo for reference. It polls `.vscode-queue.json` every
 10 seconds and sends a Telegram message when the task completes, then exits.
+In the current architecture, Hermes handles polling natively — this is only useful as a standalone fallback.
 
 ```bash
 node queue-watch.js
