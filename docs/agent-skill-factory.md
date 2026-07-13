@@ -138,130 +138,69 @@ Field name: **`agent_skill_factory`**
 
 ---
 
-## Code Skeleton — `skill-harvester.js`
+## `skill-harvester.js` — Design Decisions
 
-```javascript
-#!/usr/bin/env node
-// skill-harvester.js — reads Claude Code sessions and identifies skill candidates
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
+### Directories (from config, not hardcoded)
 
-const CLAUDE_PROJECTS = path.join(os.homedir(), '.claude', 'projects');
-const SKILLS_INDEX = path.join(os.homedir(), '.claude', 'skills', '.skills-index.txt');
+The harvester reads all paths from the `agent_skill_factory` config block — nothing is hardcoded:
 
-function readJsonlFile(filePath, maxLines = 200) {
-  const content = fs.readFileSync(filePath, 'utf8');
-  return content.split('\n')
-    .filter(l => l.trim())
-    .slice(-maxLines)
-    .map(l => { try { return JSON.parse(l); } catch { return null; } })
-    .filter(Boolean);
-}
+| Config key | Purpose | Default |
+|------------|---------|---------|
+| `sources.claude_projects_dir` | Scan JSONL sessions here | `~/.claude/projects` |
+| `sources.skills_dir` | Load installed skills for dynamic classification | `~/.claude/skills` |
+| `output_skills_dir` | Write new skill candidates here | `~/.claude/skills` |
 
-function extractTasks(events) {
-  return events
-    .filter(e => e?.message?.role === 'user')
-    .map(e => {
-      const content = e.message.content;
-      if (typeof content === 'string') return content;
-      if (Array.isArray(content))
-        return content.filter(c => c?.type === 'text').map(c => c.text).join(' ');
-      return null;
-    })
-    .filter(t => t && t.length > 20); // skip short confirmations
-}
+> `sources.skills_dir` doubles as both the classification source AND the dedup check — if a skill already exists there, don't propose it again.
 
-function extractToolSequence(events) {
-  return events
-    .filter(e => e?.message?.role === 'assistant')
-    .flatMap(e => {
-      const content = e.message.content;
-      if (!Array.isArray(content)) return [];
-      return content.filter(c => c?.type === 'tool_use').map(c => c.name);
-    });
-}
+### Dynamic Domain Classification (no hardcoded rules)
 
-function classifyDomain(text) {
-  const rules = [
-    { keywords: ['snapmirror','ontap','svm','volume','nfs','cifs','netapp'], domain: 'netapp' },
-    { keywords: ['vmware','vcenter','vm','powercli','vsphere'],              domain: 'vmware' },
-    { keywords: ['proxmox','pve','qemu','lxc'],                             domain: 'proxmox' },
-    { keywords: ['dns','active directory','ad','ldap','dc'],                domain: 'active-directory' },
-    { keywords: ['cyberark','pvwa','certificate','ssl'],                    domain: 'cyberark' },
-    { keywords: ['jenkins','pipeline','build'],                             domain: 'jenkins' },
-    { keywords: ['kubernetes','openshift','ocp','pod','namespace'],         domain: 'openshift' },
-  ];
-  const lower = text.toLowerCase();
-  for (const r of rules) {
-    if (r.keywords.some(k => lower.includes(k))) return r.domain;
-  }
-  return 'general';
-}
+`classifyDomain()` must **not** contain a static keyword list.  
+Instead, at startup the harvester scans `sources.skills_dir`, reads each `SKILL.md` frontmatter, and extracts the `triggers` field to build rules on the fly:
 
-async function main() {
-  const args = process.argv.slice(2);
-  const dryRun = args.includes('--dry-run');
-  const lastN = parseInt(args.find(a => a.startsWith('--last-n='))?.split('=')[1] || '10');
-
-  // Load existing skill names to avoid duplicates
-  const existingSkills = new Set();
-  if (fs.existsSync(SKILLS_INDEX)) {
-    fs.readFileSync(SKILLS_INDEX, 'utf8').split('\n')
-      .forEach(line => existingSkills.add(line.split(':')[0].trim()));
-  }
-
-  const candidates = [];
-  for (const dir of fs.readdirSync(CLAUDE_PROJECTS)) {
-    const dirPath = path.join(CLAUDE_PROJECTS, dir);
-    if (!fs.statSync(dirPath).isDirectory()) continue;
-
-    const jsonlFiles = fs.readdirSync(dirPath)
-      .filter(f => f.endsWith('.jsonl'))
-      .map(f => ({ name: f, mtime: fs.statSync(path.join(dirPath, f)).mtime }))
-      .sort((a, b) => b.mtime - a.mtime)
-      .slice(0, lastN)
-      .map(f => path.join(dirPath, f.name));
-
-    for (const file of jsonlFiles) {
-      const events = readJsonlFile(file);
-      const tasks = extractTasks(events);
-      const toolSeq = extractToolSequence(events);
-      if (tasks.length === 0) continue;
-      const domain = classifyDomain(tasks.join(' '));
-      candidates.push({ dir, file: path.basename(file), tasks, toolSeq, domain });
-    }
-  }
-
-  // Group by domain, filter by min_occurrences and existing skills
-  const byDomain = {};
-  for (const c of candidates) {
-    if (!byDomain[c.domain]) byDomain[c.domain] = [];
-    byDomain[c.domain].push(c);
-  }
-
-  const results = Object.entries(byDomain)
-    .filter(([domain, items]) => items.length >= 2)
-    .filter(([domain]) => !existingSkills.has(`workspace-${domain}`))
-    .map(([domain, items]) => ({
-      domain,
-      occurrences: items.length,
-      sample_tasks: items.slice(0, 2).flatMap(i => i.tasks.slice(0, 1)),
-      tool_sequence: [...new Set(items.flatMap(i => i.toolSeq))].slice(0, 5),
-      suggested_skill_name: `workspace-${domain}`
-    }));
-
-  if (dryRun) {
-    console.log(JSON.stringify(results, null, 2));
-  } else {
-    const outPath = path.join(__dirname, '..', '.skill-candidates.json');
-    fs.writeFileSync(outPath, JSON.stringify(results, null, 2));
-    console.log(`Wrote ${results.length} candidates to ${outPath}`);
-  }
-}
-
-main().catch(console.error);
 ```
+~/.claude/skills/
+  workspace-netapp-code/SKILL.md   → triggers: [ontap, snapmirror, svm, nfs]
+  linux-troubleshooting/SKILL.md   → triggers: [ssh, dmesg, systemd, linux]
+  workspace-mobaxterm/SKILL.md     → triggers: [mobaxterm, moba, ssh credentials]
+  ...
+```
+
+Result at runtime:
+```javascript
+const rules = loadSkillsDir(config.sources.skills_dir);
+// → [{ skill: 'workspace-netapp-code', keywords: ['ontap','snapmirror',...] }, ...]
+```
+
+This means the harvester is **automatically aware of whatever skills are installed** — no manual sync needed when a new skill is added.
+
+### What to extract from SKILL.md
+
+SKILL.md frontmatter already has everything needed:
+```yaml
+---
+name: workspace-netapp-code
+triggers:         # ← primary classification source
+  - ontap
+  - snapmirror
+  - svm
+description: ...  # ← fallback if no triggers field
+---
+```
+
+If `triggers` is missing, fall back to splitting the `description` into keywords (first 10 words, lowercase).
+
+### Composite Workflow Detection
+
+When a session loads **3+ distinct skills**, treat it as a `workflow` candidate, not a single-domain candidate.  
+Threshold for workflow candidates: `min_occurrences_override: 1` (workflows are by definition rare/unique).
+
+### Signals to extract per session
+
+1. First user message (the task) — main text for classification
+2. All `Skill(...)` tool calls — which skills were loaded
+3. `mcp__ccd_session__mark_chapter` titles — strongest signal (explicit chapter = task boundary)
+4. Project directory name — encodes VS Code workspace name, use as secondary domain hint
+5. Tool sequence (PowerShell / Bash / mcp\_\_*) — for the `tool_sequence` output field
 
 ---
 
