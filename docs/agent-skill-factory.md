@@ -378,6 +378,126 @@ Workflow candidates require only 1 occurrence (unique by nature) vs. the `min_oc
 
 ---
 
+## Pitfall Detection — Full Spec
+
+This section defines exactly what the harvester needs to detect, and what the fix looks like.  
+Each entry is a **ground truth case** derived from a real session — the harvester must produce this output.
+
+---
+
+### Case 1 — raw SSH fails on Cognyte Linux hosts
+
+**Session:** `6cdd966d` — `linux-troubleshooting` workspace — July 13 2026
+
+**How to detect:**
+```
+SIGNAL:  tool_use(PowerShell) result contains "Permission denied (publickey,gssapi-keyex)"
+         AND the same session has Skill("workspace-mobaxterm") loaded
+
+PATTERN: failed_tool == "PowerShell"
+         failed_cmd contains "ssh " and NOT "Invoke-MobaSSH"
+         error contains "Permission denied" OR "exit code 255"
+         next successful call to same tool: cmd contains "Invoke-MobaSSH"
+```
+
+**Failed command:**
+```powershell
+ssh -o ConnectTimeout=8 -o BatchMode=yes lperpproddb01 "hostnamectl; uptime"
+# → Exit code 255 / Permission denied (publickey,gssapi-keyex,gssapi-with-mic)
+```
+
+**Working command (found 14 calls later):**
+```powershell
+Import-Module "...\MobaXtermCredentials.psm1" -Force
+Invoke-MobaSSH -ConnectionName "lperpproddb01" -Command "hostnamectl; uptime"
+```
+
+**Target skill:** `workspace-mobaxterm` — `~/.claude/skills/workspace-mobaxterm/SKILL.md`
+
+**Existing rule in skill:**
+> "NEVER use `sshpass`, `plink`, or raw `ssh` with password — use `Invoke-MobaSSH`."
+
+**Gap:** Rule said "with password" — agent assumed keyless/BatchMode ssh was OK.
+
+**Patch to add:**
+```
+⚠️ PITFALL: raw `ssh` always fails on Cognyte Linux hosts — even without a password.
+`ssh -o BatchMode=yes host` → Permission denied (publickey,gssapi-keyex,gssapi-with-mic)
+The hosts don't accept SSH agent keys or publickey from this machine.
+ALWAYS use Invoke-MobaSSH — no exceptions, not even for a quick hostname check.
+```
+
+---
+
+### Case 2 — `-rows` flag incompatible with `-vserver`/`-volume` filter
+
+**Session:** `6cdd966d` — `linux-troubleshooting` workspace — July 13 2026
+
+**How to detect:**
+```
+SIGNAL:  tool_use(PowerShell) result contains 'Field "-rows" cannot be used with field'
+         AND the same session has Skill("workspace-netapp-code") loaded
+
+PATTERN: failed_tool == "PowerShell"
+         failed_cmd contains "qos statistics" AND "-rows" AND "-vserver"
+         error: 'Field "-rows" cannot be used with field "-vserver"'
+         next successful call: same qos command WITHOUT -rows flag
+```
+
+**Failed command:**
+```powershell
+A1k-ssh -Command "qos statistics volume latency show -vserver svm_oracle_prod -volume PRD_db -iterations 2 -rows 5"
+# → Error: Field "-rows" cannot be used with field "-vserver".
+```
+
+**Working command (found in same session):**
+```powershell
+A1k-ssh -Command "statistics volume show -vserver svm_oracle_prod -volume PRD_db"
+# → success
+```
+
+**Target skill:** `workspace-netapp-code` — `~/.claude/skills/workspace-netapp-code/SKILL.md`
+
+**Existing rule in skill:** nothing about `-rows`.
+
+**Patch to add:**
+```
+⚠️ PITFALL: `-rows` cannot be combined with `-vserver` or `-volume` field filters.
+`qos statistics volume latency show -vserver X -rows 5` → "Field -rows cannot be used with field -vserver"
+Remove `-rows` whenever you use any field filter (-vserver, -volume, -node).
+Use `-iterations N` for repeated sampling instead.
+```
+
+---
+
+## Harvester Detection Logic — Error Pattern Registry
+
+The harvester maintains a registry of error signatures → skill to patch:
+
+```json
+[
+  {
+    "error_pattern": "Permission denied (publickey,gssapi-keyex)",
+    "tool": "PowerShell",
+    "cmd_pattern": "ssh ",
+    "not_cmd_pattern": "Invoke-MobaSSH",
+    "target_skill": "workspace-mobaxterm",
+    "severity": "critical"
+  },
+  {
+    "error_pattern": "Field \"-rows\" cannot be used with field",
+    "tool": "PowerShell",
+    "cmd_pattern": "qos statistics",
+    "target_skill": "workspace-netapp-code",
+    "severity": "warning"
+  }
+]
+```
+
+> **This registry is bootstrapped from real cases.** Every new pitfall the harvester finds gets added here automatically (after user approval).
+
+---
+
 ## Open Questions
 
 | # | Question | Recommendation |
