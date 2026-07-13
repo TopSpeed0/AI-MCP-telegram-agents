@@ -23,3 +23,5 @@ node_modules/
 SESSION-SUMMARY.md
 session-log-*.md
 docs/repo-audit-findings.md
+docs/agent-skill-factory.md
+docs/kb-skill.md
