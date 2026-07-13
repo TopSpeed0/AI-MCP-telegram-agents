@@ -1,7 +1,7 @@
 # VS Code Worker — Upgrade Plan
 
 **Date:** 2026-07-14  
-**Status:** Planning (no changes made)  
+**Status:** In Progress — steps 1–4 complete  
 **Goal:** Make vscode-worker a first-class worker — own bot token, accepts commands from both Hermes and the user directly.
 
 ---
@@ -114,14 +114,14 @@ Heartbeat file: `.vscode-worker.heartbeat` (JSON with `{ "ts": epoch, "pid": N }
 
 ## Implementation Order
 
-1. **User:** Create second bot via @BotFather, note the token
-2. **Config:** Add `vscode_worker` block to `.telegram-config`
-3. **Agent:** Rewrite `vscode-worker.agent.md` with dual-input loop
-4. **Heartbeat:** vscode-worker writes `.vscode-worker.heartbeat` every iteration
-5. **Hermes routing:** Add liveness check before writing to `.vscode-queue.json`
+1. ✅ **User:** Create second bot via @BotFather, note the token
+2. ✅ **Config:** Add `VS_Code` token to `.telegram-config → tokens`
+3. ✅ **Agent:** Rewrite `vscode-worker.agent.md` with dual-input loop + own bot + heartbeat
+4. ✅ **Gitignore:** Added `.vscode-worker.heartbeat` to `.gitignore`
+5. ⬜ **Hermes routing:** Add liveness check before writing to `.vscode-queue.json`
    (skip if heartbeat file is stale >5 min)
-6. **Hermes memory:** Update `vscode-copilot-worker-hybrid` skill — note that
-   vscode-worker now has its own bot and heartbeat mechanism
+6. ⬜ **Hermes memory:** Update `vscode-copilot-worker-hybrid` skill routing table
+   to reflect that vscode-worker is active again, not archived
 
 ---
 

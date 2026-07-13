@@ -17,6 +17,9 @@ Thumbs.db
 *.log
 node_modules/
 
+# vscode-worker runtime files
+.vscode-worker.heartbeat
+
 # monitoring and session logs
 /morning-reports/*
 /morning-reports
