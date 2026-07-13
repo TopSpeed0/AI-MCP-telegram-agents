@@ -8,6 +8,17 @@
     "~/.claude/skills"
   ],
 
+  "_comment_pre_scripts": "Optional. Commands to run BEFORE Hermes starts. Start-Hermes.ps1 expands $WORKSPACE (= repo root, i.e. parent of scripts/) and $env:LOCALAPPDATA at runtime. Use for: skills sync, credential refresh, token renewal.",
+  "pre_scripts": [
+    "\"$env:LOCALAPPDATA\\hermes\\hermes-agent\\venv\\Scripts\\python.exe\" \"$env:LOCALAPPDATA\\hermes\\scripts\\sync-skills.py\"",
+    "node --use-system-ca \"$WORKSPACE\\scripts\\sync-skills.js\""
+  ],
+
+  "_comment_post_scripts": "Optional. Commands to run AFTER Hermes starts. Same variable expansion applies. Use for: KVM/oVirt token renewal, external service auth.",
+  "post_scripts": [
+    "\"C:\\Program Files\\PowerShell\\7\\pwsh.exe\" -NoLogo -NoProfile -File \"<path-to-post-script.ps1>\""
+  ],
+
   "_comment_agents": "Optional. Configure worker daemons for Hermes Overmind task delegation.",
   "agents": {
     "copilot": {
@@ -19,7 +30,7 @@
       "description": "Claude Code Daemon (TopSpeed0/ClaudeCodeTelgMCP)"
     },
     "vscode": {
-      "queue": "C:\\path\\to\\AI-MCP-telegram-agents\\\\.vscode-queue.json",
+      "queue": "C:\\path\\to\\AI-MCP-telegram-agents\\.vscode-queue.json",
       "description": "VS Code worker (legacy — only when VS Code is explicitly running)"
     }
   }
