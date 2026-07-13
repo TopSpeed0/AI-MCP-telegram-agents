@@ -7,15 +7,65 @@
 
 ## Problem
 
-Hermes learns from trial and error but never persists that learning.  
+Hermes learns from trial and error but **never persists that learning**.  
 Skills are created manually — nothing is automatic.  
-This feature makes Hermes watch agent logs and auto-generate skills from observed patterns.
+
+Every time Claude Code runs a session, it produces evidence of:
+- Commands that **failed** (wrong syntax, incompatible flags, missing module)
+- The **corrected command** that worked immediately after
+- Exactly which skill was loaded at that moment
+
+That evidence sits in JSONL logs and is never used again.  
+Next session — same agent, same tool, same mistake.
+
+---
+
+## Primary Use Case — Pitfall Detection (Most Valuable)
+
+> **Find trial-and-error sequences → extract the working syntax → patch the existing skill with a `⚠️ PITFALL` entry.**
+
+This is the **highest-value action** the harvester can take.  
+It does not create a new skill — it improves an existing one with real, observed failure data.
+
+### Example — July 13 2026
+
+**Pattern detected in `linux-troubleshooting` session:**
+
+| Step | What happened |
+|------|---------------|
+| Skill loaded | `workspace-mobaxterm` |
+| Failed attempt | `ssh -o BatchMode=yes lperpproddb01` → `Permission denied (publickey,gssapi-keyex)` |
+| Working command | `Invoke-MobaSSH -ConnectionName "lperpproddb01"` |
+| Skill already says | "NEVER use raw ssh with password" |
+| Gap | Rule was too narrow — agent assumed keyless ssh was OK |
+| Fix | Add pitfall: *raw ssh always fails on Cognyte hosts, even without password* |
+
+**Second pattern in same session:**
+
+| Step | What happened |
+|------|---------------|
+| Skill loaded | `workspace-netapp-code` |
+| Failed attempt | `qos statistics volume latency show -vserver X -rows 5` → `Error: Field "-rows" cannot be used with field "-vserver"` |
+| Working command | `statistics volume show -vserver X -volume Y` (no `-rows`) |
+| Skill already says | nothing about `-rows` |
+| Fix | Add pitfall: *`-rows` is incompatible with `-vserver`/`-volume` filters — remove it* |
+
+Both fixes are **patches to existing skills**, not new skills.
+
+---
+
+## Secondary Use Case — New Skill Detection
+
+When a session uses **no existing skill** for a recurring task domain → propose a new skill candidate.  
+Threshold: `min_occurrences: 2` (must appear in at least 2 separate sessions).
 
 ---
 
 ## Idea
 
-Hermes watches Claude Code and Copilot CLI logs, detects recurring task patterns not yet covered by a skill, drafts a `SKILL.md`, and pushes it to git.
+Hermes watches Claude Code and Copilot CLI logs, detects two types of patterns:
+1. **Trial-and-error** within a loaded skill → patch the skill with the discovered pitfall
+2. **Recurring tasks** with no skill coverage → propose a new skill candidate
 
 ---
 
@@ -101,19 +151,33 @@ Field name: **`agent_skill_factory`**
 - Queue files (Copilot + Claude) — all completed tasks
 
 ### Algorithm
-1. **Task extraction** — extract all `user` messages that are action requests (not questions)
-2. **Tool pattern detection** — identify recurring tool call sequences
-3. **Success detection** — session ended without error in last message
-4. **Domain classification** — cluster by keywords (NetApp/ONTAP, VMware, DNS, CyberArk, etc.)
-5. **Dedup against existing skills** — compare keywords against `.skills-index.txt`
-6. **Output JSON candidates** — list of candidates with domain, triggers, sample task, tool sequence
+
+**Step 1 — Pitfall Detection (primary)**
+1. Find `tool_use` events where the result contains error keywords (`error`, `permission denied`, `cannot`, `invalid`, `field X cannot be used with field Y`, etc.)
+2. Look at the next 1–3 calls of the **same tool** — if one succeeds, that's the corrected syntax
+3. Check which `Skill(...)` was loaded in this session → that's the skill to patch
+4. Output: `{ type: "pitfall", skill: "workspace-netapp-code", failed_cmd: "...", working_cmd: "...", error_msg: "..." }`
+
+**Step 2 — New Skill Detection (secondary)**
+1. Extract all user task messages
+2. Classify domain using triggers from installed skills (dynamic, not hardcoded)
+3. If no skill was loaded for that domain AND task appears in 2+ sessions → propose new skill candidate
+4. Output: `{ type: "new_skill", domain: "...", sample_tasks: [...], tool_sequence: [...] }`
 
 ### Output format
 ```json
 [
   {
-    "domain": "netapp-snapmirror",
-    "trigger_words": ["snapmirror", "resync", "dr"],
+    "type": "pitfall",
+    "skill": "workspace-mobaxterm",
+    "failed_cmd": "ssh -o BatchMode=yes lperpproddb01 ...",
+    "working_cmd": "Invoke-MobaSSH -ConnectionName 'lperpproddb01' -Command '...'",
+    "error_msg": "Permission denied (publickey,gssapi-keyex)",
+    "proposed_patch": "⚠️ PITFALL: raw ssh always fails on Cognyte Linux hosts even without password. Use Invoke-MobaSSH."
+  },
+  {
+    "type": "new_skill",
+    "domain": "netapp",
     "occurrences": 3,
     "sample_tasks": ["resync SVM-DR on NADR...", "..."],
     "tool_sequence": ["Bash(Get-NcSnapmirror)", "Bash(Initialize-NcSnapmirrorUpdate)"],
