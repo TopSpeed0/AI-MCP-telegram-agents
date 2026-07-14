@@ -33,5 +33,23 @@
       "queue": "C:\\path\\to\\AI-MCP-telegram-agents\\.vscode-queue.json",
       "description": "VS Code worker (legacy — only when VS Code is explicitly running)"
     }
+  },
+
+  "_comment_agent_skill_factory": "Optional. Agent Skill Factory — harvests trial-and-error patterns from Claude Code JSONL sessions and turns them into skill pitfall patches. Phase 1 (dry_run) only reads logs and writes .skill-candidates.json; it NEVER patches a skill. Keep dry_run=true until candidate quality is proven. All paths support ~ for home dir.",
+  "agent_skill_factory": {
+    "enabled": true,
+    "schedule": "0 */6 * * *",
+    "sources": {
+      "_comment": "claude_projects_dir = where JSONL sessions live. skills_dir = installed skills, used BOTH for dynamic domain classification AND as the target-skill gate (a candidate is only emitted if its target skill was actually loaded). queue_files reference paths already defined under 'agents'.",
+      "claude_projects_dir": "~/.claude/projects",
+      "skills_dir": "~/.claude/skills",
+      "queue_files": ["agents.copilot.queue", "agents.claude.queue"]
+    },
+    "registry": "$WORKSPACE\\scripts\\error-patterns.json",
+    "output_candidates": "$WORKSPACE\\.skill-candidates.json",
+    "output_skills_dir": "~/.claude/skills",
+    "git_auto_push": false,
+    "min_occurrences": 2,
+    "dry_run": true
   }
 }
