@@ -19,11 +19,19 @@ skill pitfall fixes. The factory *fixes your skills* using real failures observe
 
 | Item | Path |
 |------|------|
-| Design doc (authoritative) | `Master_Work_Space/docs/agent-skill-factory.md` (gitignored until dev done) |
-| Harvester script | `Master_Work_Space/scripts/skill-harvester.py` |
+| Design doc (authoritative, local-only) | `Master_Work_Space/docs/agent-skill-factory.md` (gitignored until dev done) |
+| Public-safe roadmap (tracked) | `Master_Work_Space/skills/agent-skill-factory/ROADMAP.md` |
+| Harvester script (Phase 1/2) | `Master_Work_Space/scripts/skill-harvester.py` |
+| Mechanical diff engine (Phase 3a, Layer A) | `Master_Work_Space/scripts/diff_engine.py` + `scripts/test_diff_engine.py` |
 | Error registry | `Master_Work_Space/scripts/error-patterns.json` (gitignored — internal infra names) |
 | Runtime output | `Master_Work_Space/.skill-candidates.json` (gitignored) |
 | Skills that get fixed | `~/.claude/skills/<skill>/SKILL.md` (SOURCE — local git here) |
+| Local Claude consumer | `~/.claude/skills/agent-skill-factory/SKILL.md` (thin pointer, local-only, not tracked) |
+
+**Canonical ownership:** this file (`skills/agent-skill-factory/SKILL.md` in this repo)
+is the authoritative source for design/status. The `~/.claude/skills/agent-skill-factory/SKILL.md`
+copy is a pointer/consumer only — it must never restate phase status independently;
+it links back here to avoid drift.
 
 **Read the design doc first** for anything non-trivial — it has the full phase plan,
 recon data, and the noise-trap findings.
@@ -40,8 +48,15 @@ recon data, and the noise-trap findings.
 - **Phase 1 — DONE.** Registry-driven pitfall detection, dry-run. Passes acceptance:
   `--session 6cdd966d` → exactly 2 pitfalls, 0 false positives.
 - **Phase 2 — DONE.** `agent_skill_factory` config schema in `.telegram-config.example`.
-- **Phase 3 — DESIGNED, not built.** Diff-based generic detection (the real vision).
 - **Phase 3a recon — DONE.** 79 sessions, 130 error→fix pairs. Signal confirmed.
+- **Phase 3a mechanical diff engine — BUILT + TESTED (dry-run only).**
+  `scripts/diff_engine.py` implements registry-free, inter-block diff detection;
+  `scripts/test_diff_engine.py` is its acceptance test (0 crashes across scanned
+  sessions, known false positive rejected, signal found). This validates the
+  detection layer in isolation — it does **not** mean the diff engine is wired
+  into `skill-harvester.py`'s CLI, into production candidate output, or that an
+  agent has verified end-to-end fixes from it. Layer B (LLM interpretation) is
+  not yet built. See `ROADMAP.md` for the honest completed/needs-validation split.
 
 ## Running the harvester (Phase 1, dry-run)
 
@@ -85,12 +100,16 @@ This is what makes every change reversible.
 
 - For ANY error→success pair, **diff the two commands**, turn the delta into a pitfall.
   Registry becomes optional fast-path; the log becomes source of truth. Self-expanding.
-- **Layer A (mechanical diff, NO LLM):** generic error detection → pair match → normalize
-  → `difflib` delta. Deterministic, cheap, runs freely.
-- **Layer B (LLM interpretation):** only fires on candidates Layer A found. Drafts pitfall
-  wording. Gated behind user approval.
-- **Cadence: every 2 days** (`0 6 */2 * *`). LLM is expensive — empty cycles stay silent,
-  zero token spend.
+- **Layer A (mechanical diff, NO LLM) — BUILT + TESTED.** `scripts/diff_engine.py`:
+  generic error detection → inter-block pair match → normalize → `difflib` delta.
+  Deterministic, cheap, runs freely. `scripts/test_diff_engine.py` verifies 0 crashes,
+  rejection of the known Outlook false positive, and non-zero real signal across
+  scanned sessions. **Not yet wired into `skill-harvester.py`'s CLI or production
+  candidate output** — it runs standalone today.
+- **Layer B (LLM interpretation) — NOT BUILT.** Only fires on candidates Layer A found.
+  Drafts pitfall wording. Gated behind user approval.
+- **Cadence: every 2 days** (`0 6 */2 * *`) — planned once Layer B exists. LLM is
+  expensive — empty cycles stay silent, zero token spend.
 
 ### Phase 3a recon findings (from real data — shape the code)
 - 79 sessions → 288 failed commands → **130 error→fix pairs (45% rate)**. Enough signal.
