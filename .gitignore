@@ -18,6 +18,8 @@
 # ─────────────────────────────────────────────────────────────
 .github/copilot-instructions.md
 start-loop.txt
+/symlinks/*
+/symlinks/*/*/
 
 # ─────────────────────────────────────────────────────────────
 # Session logs / monitoring output
