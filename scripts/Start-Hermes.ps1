@@ -7,6 +7,23 @@ $ErrorActionPreference = 'Continue'
 $WORKSPACE = $PSScriptRoot | Split-Path -Parent
 $configFile = "$WORKSPACE\.telegram-config"
 
+# The Git-tracked .hermes.md is the canonical Overmind prompt. Regenerate only
+# agent.environment_hint before the gateway starts; no other config is changed.
+$hintSync = Join-Path $WORKSPACE 'scripts\sync-hermes-hint.py'
+$hermesPython = "$env:LOCALAPPDATA\hermes\hermes-agent\venv\Scripts\python.exe"
+if ((Test-Path $hintSync) -and (Test-Path $hermesPython)) {
+    try {
+        & $hermesPython $hintSync
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "  ⚠ Overmind hint sync failed (exit $LASTEXITCODE)" -ForegroundColor Yellow
+        }
+    } catch {
+        Write-Host "  ⚠ Overmind hint sync failed: $_" -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "  ⚠ Overmind hint sync skipped: script or Hermes Python missing" -ForegroundColor Yellow
+}
+
 function Run-Scripts($label, $scripts) {
     if (-not $scripts) { return }
     foreach ($script in $scripts) {

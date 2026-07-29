@@ -19,7 +19,20 @@
     "\"C:\\Program Files\\PowerShell\\7\\pwsh.exe\" -NoLogo -NoProfile -File \"<path-to-post-script.ps1>\""
   ],
 
-  "_comment_agents": "Optional. Configure worker daemons for Hermes Overmind task delegation.",
+  "_comment_delegation": "Delegation is opt-in: default=direct. Hermes delegates only after an explicit user request and an exact mission_types match.",
+  "delegation": {
+    "default": "direct",
+    "require_explicit_user_request": true,
+    "unknown_mission": "direct"
+  },
+  "_comment_mission_types": "Map only clear, approved mission types to configured agent names. Any task without an exact match stays with Hermes.",
+  "mission_types": {
+    "code_implementation": { "agent": "copilot" },
+    "build_or_test": { "agent": "copilot" },
+    "long_autonomous_task": { "agent": "claude" }
+  },
+
+  "_comment_agents": "Optional. Configure worker daemons referenced by mission_types.",
   "agents": {
     "copilot": {
       "queue": "C:\\path\\to\\Copilot-CLI-Telegram-MCP\\.copilot-queue.json",
