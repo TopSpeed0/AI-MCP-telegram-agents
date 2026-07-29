@@ -32,25 +32,28 @@
     "copilot": {
       "queue": "C:\\path\\to\\Copilot-CLI-Telegram-MCP\\.copilot-queue.json",
       "mission_types": [
-        "code_implementation",
-        "build_or_test",
-        "long_running_execution"
+        "light_search_and_research",
+        "simple_skill_backed_retrieval",
+        "file_status_check",
+        "simple_script_execution",
+        "general_external_task"
       ]
     },
     "claude": {
       "queue": "C:\\path\\to\\ClaudeCodeTelgMCP\\.claude-queue.json",
       "mission_types": [
-        "code_implementation",
-        "build_or_test",
-        "long_running_execution"
+        "email_sending",
+        "artifact_creation",
+        "deep_report_creation",
+        "web_page_creation",
+        "visual_asset_creation"
       ]
     },
     "vscode": {
       "queue": "C:\\path\\to\\AI-MCP-telegram-agents\\.vscode-queue.json",
+      "requires_explicit_user_availability_confirmation": true,
       "mission_types": [
-        "code_implementation",
-        "build_or_test",
-        "long_running_execution"
+        "code_editing"
       ]
     }
   },
